@@ -1,4 +1,4 @@
-import { getGoogleAuthToken } from './google_jwt.js';
+
 
 // Helper to format date to Thai locale strings
 function formatThaiDate(dateStr) {
@@ -18,42 +18,28 @@ function jsonResponse(data, status = 200) {
   });
 }
 
-// Function to handle Google Sheets API calls
+// Function to handle Google Sheets API calls via Apps Script Webhook
 async function appendToGoogleSheet(env, transaction) {
   try {
-    const serviceAccountJson = env.GOOGLE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountJson) {
-      console.warn("GOOGLE_SERVICE_ACCOUNT_JSON is not set. Skipping Google Sheets sync.");
+    const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL;
+    if (!appsScriptUrl) {
+      console.warn("GOOGLE_APPS_SCRIPT_URL is not set. Skipping Google Sheets sync.");
       return;
     }
 
-    const token = await getGoogleAuthToken(serviceAccountJson);
-    const sheetId = env.GOOGLE_SHEET_ID;
-    const range = 'บันทึกรายรับรายจ่าย!B:F'; // Adjust based on your sheet structure
-
-    // Assuming columns are: [Date, Empty, Type, Category, Empty, Amount, Note] or similar based on server.py
-    // This part should match the exact columns mapped in your python code
-    // Assuming columns: B=Date, C=Type, D=Category, E=Amount, F=Note (Adjust according to actual structure)
-    const values = [
-      [transaction.date, transaction.type, transaction.category, transaction.amount, transaction.note || ""]
-    ];
-
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}:append?valueInputOption=USER_ENTERED`, {
+    const response = await fetch(appsScriptUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        values: values
-      })
+      body: JSON.stringify(transaction)
     });
 
     if (!response.ok) {
-      console.error("Google Sheets API error:", await response.text());
+      console.error("Google Sheets Apps Script error:", await response.text());
     }
   } catch (error) {
-    console.error("Failed to sync with Google Sheets:", error);
+    console.error("Failed to sync with Google Sheets Apps Script:", error);
   }
 }
 
