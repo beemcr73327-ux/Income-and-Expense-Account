@@ -1,0 +1,479 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // App State
+    const state = {
+        currentYear: new Date().getFullYear(),
+        currentMonth: new Date().getMonth() + 1,
+        currentDay: new Date().toISOString().split('T')[0],
+        chartView: 'year',
+        txType: 'รายจ่าย', // Default changed to match DB types
+        historyFilter: 'all',
+        summaryData: null,
+        transactionsData: null,
+        budgetConfig: [],
+        categories: {
+            income: ["เงินเดือน", "อื่นๆ"],
+            expense: ["อาหาร", "เดินทาง", "ของใช้ส่วนตัว"],
+            saving_groups: ["หุ้น", "กองทุน"],
+            saving_types: ["ซื้อ", "ขาย", "ออม", "spend"]
+        },
+        chartInstance: null
+    };
+
+    const CATEGORY_COLORS = {
+        "อาหาร": "#f43f5e",
+        "ของใช้ส่วนตัว": "#ec4899",
+        "วัตถุดิบอาหาร": "#fb923c",
+        "7-ELEVEN": "#10b981",
+        "เดินทาง": "#3b82f6",
+        "เครื่องดื่ม": "#06b6d4",
+        "ของใช้": "#eab308",
+        "เปย์ตัวเอง": "#a855f7",
+        "Enjoy": "#8b5cf6",
+        "อื่นๆ": "#64748b",
+        "ท่องเที่ยว": "#14b8a6",
+        "Instellment": "#f59e0b",
+        "Gift": "#f472b6"
+    };
+
+    // DOM Elements
+    const elements = {
+        navItems: document.querySelectorAll('.nav-item'),
+        pageViews: document.querySelectorAll('.page-view'),
+        badgeConn: document.getElementById('badge-conn'),
+        btnSync: document.getElementById('btn-sync'),
+        kpiIncome: document.getElementById('kpi-income'),
+        kpiExpense: document.getElementById('kpi-expense'),
+        kpiSaving: document.getElementById('kpi-saving'),
+        kpiBalance: document.getElementById('kpi-balance'),
+        chartViewBtns: document.querySelectorAll('.toggle-view .segmented-btn'),
+        monthFilterGroup: document.getElementById('month-filter-group'),
+        dayFilterGroup: document.getElementById('day-filter-group'),
+        monthSelect: document.getElementById('month-select'),
+        dayPicker: document.getElementById('day-picker'),
+        chartTotalVal: document.getElementById('chart-total-val'),
+        budgetProgressList: document.getElementById('budget-progress-list'),
+        typeTabs: document.querySelectorAll('.type-tab'),
+        txTypeInput: document.getElementById('tx-type'),
+        txDateInput: document.getElementById('tx-date'),
+        txNameContainer: document.getElementById('tx-name-container'),
+        txAmountInput: document.getElementById('tx-amount'),
+        savingFields: document.getElementById('saving-fields'),
+        txSavingType: document.getElementById('tx-saving-type'),
+        txSavingGroup: document.getElementById('tx-saving-group'),
+        txNoteInput: document.getElementById('tx-note'),
+        txForm: document.getElementById('tx-form'),
+        historyFilterBtns: document.querySelectorAll('.history-tabs .segmented-btn'),
+        historyList: document.getElementById('history-list'),
+        toast: document.getElementById('toast')
+    };
+
+    // Set Default Dates
+    const todayStr = new Date().toISOString().split('T')[0];
+    elements.txDateInput.value = todayStr;
+    elements.dayPicker.value = todayStr;
+
+    // Navigation Handler
+    elements.navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            elements.navItems.forEach(n => n.classList.remove('active'));
+            elements.pageViews.forEach(p => p.classList.remove('active'));
+            
+            item.classList.add('active');
+            const targetPage = item.getAttribute('data-page');
+            document.getElementById(targetPage).classList.add('active');
+
+            if (targetPage === 'page-history') loadTransactions();
+        });
+    });
+
+    function showToast(message, duration = 3000) {
+        if (!elements.toast) return;
+        elements.toast.textContent = message;
+        elements.toast.classList.add('show');
+        setTimeout(() => elements.toast.classList.remove('show'), duration);
+    }
+
+    function formatTHB(amount) {
+        return '฿' + (amount || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    async function checkConfig() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            if (data.status === "success") {
+                if (elements.badgeConn) {
+                    elements.badgeConn.className = "badge badge-success";
+                    elements.badgeConn.textContent = "Connected";
+                }
+            } else {
+                if (elements.badgeConn) {
+                    elements.badgeConn.className = "badge badge-warning";
+                    elements.badgeConn.textContent = "Mock Mode";
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    if (elements.btnSync) {
+        elements.btnSync.addEventListener('click', async () => {
+            const originalHtml = elements.btnSync.innerHTML;
+            elements.btnSync.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Syncing...';
+            elements.btnSync.disabled = true;
+            lucide.createIcons();
+            
+            try {
+                const res = await fetch('/api/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("ดึงข้อมูลจาก Google Sheets สำเร็จ!");
+                    await loadCategories();
+                    await loadBudgetConfig();
+                } else {
+                    showToast("เกิดข้อผิดพลาดในการ Sync");
+                }
+            } catch (err) {
+                showToast("ไม่สามารถติดต่อ Server ได้");
+            } finally {
+                elements.btnSync.innerHTML = originalHtml;
+                elements.btnSync.disabled = false;
+                lucide.createIcons();
+            }
+        });
+    }
+
+    async function loadCategories() {
+        try {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            if (data["รายจ่าย"]) state.categories.expense = data["รายจ่าย"];
+            if (data["รายรับ"]) state.categories.income = data["รายรับ"];
+            if (data["saving_groups"]) state.categories.saving_groups = data["saving_groups"];
+            if (data["saving_types"]) state.categories.saving_types = data["saving_types"];
+            updateFormFields();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadSummary() {
+        try {
+            const url = `/api/summary?year=${state.currentYear}&month=${state.currentMonth}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            state.summaryData = data;
+
+            if (elements.kpiIncome) elements.kpiIncome.textContent = formatTHB(data["รายรับ"]);
+            if (elements.kpiExpense) elements.kpiExpense.textContent = formatTHB(data["รายจ่าย"]);
+            if (elements.kpiSaving) elements.kpiSaving.textContent = formatTHB(data["เงินออม/ลงทุน"]);
+            if (elements.kpiBalance) elements.kpiBalance.textContent = formatTHB(data["ยอดคงเหลือ"]);
+
+            renderChart();
+        } catch (e) {
+            console.error("Error loading summary:", e);
+        }
+    }
+
+    async function loadBudgetConfig() {
+        try {
+            const res = await fetch(`/api/budget?year=${state.currentYear}&month=${state.currentMonth}`);
+            state.budgetConfig = await res.json();
+            renderBudgetProgress();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderChart() {
+        if (!state.summaryData) return;
+        // In the updated API, summary just gives totals. Chart needs expense breakdown, which is now in budgetConfig!
+        if (!state.budgetConfig || state.budgetConfig.length === 0) return;
+        
+        const usedItems = state.budgetConfig.filter(i => i.used > 0);
+        let labels = usedItems.map(i => i.category);
+        let values = usedItems.map(i => i.used);
+        let colors = [];
+
+        if (labels.length === 0) {
+            labels = ["ยังไม่มีรายการ"];
+            values = [1];
+            colors = ["#e2e8f0"];
+        } else {
+            colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
+        }
+
+        const totalExpense = state.summaryData["รายจ่าย"] || 0;
+        if (elements.chartTotalVal) {
+            elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
+        }
+
+        const ctxElem = document.getElementById('expenseChart');
+        if (!ctxElem) return;
+        const ctx = ctxElem.getContext('2d');
+        if (state.chartInstance) state.chartInstance.destroy();
+
+        state.chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 3,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#475569',
+                            font: { family: 'Prompt', size: 11, weight: '600' },
+                            padding: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.label === "ยังไม่มีรายการ") return " ไม่มีข้อมูล";
+                                const val = context.raw;
+                                const pct = totalExpense > 0 ? ((val / totalExpense) * 100).toFixed(1) : 0;
+                                return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderBudgetProgress() {
+        if (!state.budgetConfig || !Array.isArray(state.budgetConfig)) return;
+        const container = elements.budgetProgressList;
+        if (!container) return;
+        container.innerHTML = '';
+
+        state.budgetConfig.forEach(item => {
+            const cat = item.category;
+            const budget = item.limit || 0;
+            const actual = item.used || 0;
+            
+            if (budget === 0 && actual === 0) return;
+
+            const pct = budget > 0 ? Math.min(Math.round((actual / budget) * 100), 100) : (actual > 0 ? 100 : 0);
+            let color = "#10b981"; // soft green
+            if (pct > 80) color = "#f59e0b"; // warm yellow
+            if (pct >= 100) color = "#f43f5e"; // soft red
+
+            const itemHtml = `
+                <div class="budget-item">
+                    <div class="budget-info">
+                        <span class="budget-cat">${cat} (${pct}%)</span>
+                        <span class="budget-amounts">฿${actual.toLocaleString()} / ฿${budget.toLocaleString()}</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" style="width: ${pct}%; background-color: ${color};"></div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', itemHtml);
+        });
+    }
+
+    elements.chartViewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            elements.chartViewBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.chartView = btn.getAttribute('data-view');
+
+            elements.monthFilterGroup.style.display = (state.chartView === 'month') ? 'flex' : 'none';
+            elements.dayFilterGroup.style.display = (state.chartView === 'day') ? 'flex' : 'none';
+
+            loadSummary();
+        });
+    });
+
+    if (elements.monthSelect) {
+        elements.monthSelect.addEventListener('change', (e) => {
+            state.currentMonth = parseInt(e.target.value);
+            loadSummary();
+            loadBudgetConfig();
+        });
+    }
+
+    if (elements.dayPicker) {
+        elements.dayPicker.addEventListener('change', (e) => {
+            state.currentDay = e.target.value;
+            loadSummary();
+        });
+    }
+
+    function updateFormFields() {
+        const type = state.txType;
+        if (!elements.txNameContainer) return;
+        elements.txNameContainer.innerHTML = '';
+
+        if (type === 'รายจ่าย' || type === 'expense') {
+            let optionsHtml = state.categories.expense.map(c => `<option value="${c}">${c}</option>`).join('');
+            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-input" required>${optionsHtml}</select>`;
+            elements.savingFields.style.display = 'none';
+        } else if (type === 'รายรับ' || type === 'income') {
+            let optionsHtml = state.categories.income.map(c => `<option value="${c}">${c}</option>`).join('');
+            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-input" required>${optionsHtml}</select>`;
+            elements.savingFields.style.display = 'none';
+        } else if (type === 'เงินออม/ลงทุน' || type === 'saving') {
+            elements.txNameContainer.innerHTML = `<input type="text" id="tx-name" class="form-input" placeholder="เช่น Make, KS, InnovestX" required>`;
+            elements.savingFields.style.display = 'block';
+
+            if (elements.txSavingType) {
+                elements.txSavingType.innerHTML = `<option value="" disabled selected>เลือกประเภท...</option>` + state.categories.saving_types.map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+            if (elements.txSavingGroup) {
+                elements.txSavingGroup.innerHTML = `<option value="" disabled selected>เลือกกลุ่ม...</option>` + state.categories.saving_groups.map(g => `<option value="${g}">${g}</option>`).join('');
+            }
+        }
+    }
+
+    elements.typeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            elements.typeTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            let typeCode = tab.getAttribute('data-type');
+            if (typeCode === 'expense') state.txType = 'รายจ่าย';
+            if (typeCode === 'income') state.txType = 'รายรับ';
+            if (typeCode === 'saving') state.txType = 'เงินออม/ลงทุน';
+            
+            elements.txTypeInput.value = state.txType;
+            updateFormFields();
+        });
+    });
+
+    if (elements.txForm) {
+        elements.txForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('btn-save-tx');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
+            lucide.createIcons();
+
+            const nameInput = document.getElementById('tx-name');
+            const payload = {
+                type: state.txType,
+                date: elements.txDateInput.value,
+                category: nameInput ? nameInput.value : '',
+                amount: parseFloat(elements.txAmountInput.value),
+                note: elements.txNoteInput.value,
+                saving_type: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingType ? elements.txSavingType.value : '') : '',
+                saving_group: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingGroup ? elements.txSavingGroup.value : '') : ''
+            };
+
+            try {
+                const res = await fetch('/api/transaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast("✨ บันทึกเรียบร้อยแล้ว!");
+                    elements.txAmountInput.value = '';
+                    elements.txNoteInput.value = '';
+                    loadSummary();
+                    loadBudgetConfig();
+                } else {
+                    showToast("❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถบันทึกได้"));
+                }
+            } catch (err) {
+                showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i data-lucide="save"></i> บันทึกข้อมูลลง Google Sheets`;
+                lucide.createIcons();
+            }
+        });
+    }
+
+    async function loadTransactions() {
+        try {
+            const url = `/api/transactions?year=${state.currentYear}&month=${state.currentMonth}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            state.transactionsData = data;
+            renderTransactionHistory();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderTransactionHistory() {
+        if (!state.transactionsData) return;
+        const container = elements.historyList;
+        if (!container) return;
+        container.innerHTML = '';
+
+        let txs = state.transactionsData || [];
+        if (state.historyFilter !== 'all') {
+            let filterType = state.historyFilter === 'expense' ? 'รายจ่าย' : (state.historyFilter === 'income' ? 'รายรับ' : 'เงินออม/ลงทุน');
+            txs = txs.filter(t => t.type === filterType);
+        }
+
+        if (txs.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 20px; font-weight: 500;">ไม่มีรายการบันทึกในเดือนนี้</div>`;
+            return;
+        }
+
+        txs.forEach(t => {
+            let iconName = 'arrow-down-right';
+            let sign = '-';
+            let typeClass = 'expense';
+            if (t.type === 'รายรับ') { iconName = 'arrow-up-right'; sign = '+'; typeClass = 'income'; }
+            if (t.type === 'เงินออม/ลงทุน') { iconName = 'piggy-bank'; sign = ''; typeClass = 'saving'; }
+
+            const itemHtml = `
+                <div class="tx-item tx-${typeClass}">
+                    <div class="tx-left">
+                        <div class="tx-icon"><i data-lucide="${iconName}"></i></div>
+                        <div class="tx-details">
+                            <span class="tx-title">${t.category}</span>
+                            <span class="tx-sub">${t.date} ${t.note ? '• ' + t.note : ''}</span>
+                        </div>
+                    </div>
+                    <span class="tx-amount">${sign}฿${t.amount.toLocaleString()}</span>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', itemHtml);
+        });
+        lucide.createIcons();
+    }
+
+    elements.historyFilterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            elements.historyFilterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.historyFilter = btn.getAttribute('data-filter');
+            renderTransactionHistory();
+        });
+    });
+
+    // Initialize Application
+    checkConfig();
+    loadCategories().then(() => {
+        // Trigger initial type mapping
+        const activeTab = document.querySelector('.type-tab.active');
+        if(activeTab) activeTab.click();
+    });
+    loadBudgetConfig();
+    loadSummary();
+});
