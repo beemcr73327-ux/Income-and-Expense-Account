@@ -79,7 +79,8 @@ export async function onRequest(context) {
     // 3. POST /api/transaction
     if (path === '/api/transaction' && request.method === 'POST') {
       const body = await request.json();
-      const { date, type, category, amount, note } = body;
+      const category = body.category || body.name;
+      const { date, type, amount, note } = body;
 
       if (!date || !type || !category || amount == null) {
         return jsonResponse({ error: "Missing required fields" }, 400);
