@@ -60,6 +60,31 @@ export async function onRequest(context) {
   try {
     // 1. GET /api/config
     if (path === '/api/config' && request.method === 'GET') {
+      try {
+        await env.DB.exec(`
+          CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            note TEXT,
+            saving_type TEXT,
+            saving_group TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+          CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+
+          CREATE TABLE IF NOT EXISTS sync_data (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+      } catch (dbError) {
+        console.error("DB Init Error:", dbError);
+      }
       return jsonResponse({ status: "success", message: "Cloudflare Backend is running" });
     }
 
