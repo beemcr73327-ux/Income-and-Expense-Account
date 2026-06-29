@@ -5,6 +5,11 @@ function formatThaiDate(dateStr) {
   return formatter.format(date);
 }
 
+// === นำ URL ของ Google Apps Script มาวางในเครื่องหมายคำพูดด้านล่างนี้ ===
+// ตัวอย่าง: const HARDCODED_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfyc.../exec";
+const HARDCODED_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJU4bpiYSOYMPE2OG4EnWu4u_Dkmo6ljYjVSZzkJyRwhMRk2aAp7hgLd2x1grq9fMe/exec"; 
+// ======================================================================
+
 // Ensure valid response format
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -19,7 +24,7 @@ function jsonResponse(data, status = 200) {
 // Function to handle Google Sheets API calls via Apps Script Webhook
 async function appendToGoogleSheet(env, transaction) {
   try {
-    const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL;
+    const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
     if (!appsScriptUrl) {
       console.warn("GOOGLE_APPS_SCRIPT_URL is not set. Skipping Google Sheets sync.");
       return;
@@ -120,7 +125,7 @@ export async function onRequest(context) {
 
     // 2. POST /api/sync
     if (path === '/api/sync' && request.method === 'POST') {
-      const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL;
+      const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
       if (!appsScriptUrl) return jsonResponse({ error: "No Apps Script URL" }, 400);
       
       const res = await fetch(appsScriptUrl);
