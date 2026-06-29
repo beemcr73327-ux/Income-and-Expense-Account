@@ -4,20 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // App State
     const state = {
-        currentYear: 2026,
-        currentMonth: 6,
+        currentYear: new Date().getFullYear(),
+        currentMonth: new Date().getMonth() + 1,
         currentDay: new Date().toISOString().split('T')[0],
         chartView: 'year',
-        txType: 'expense',
+        txType: 'รายจ่าย', // Default changed to match DB types
         historyFilter: 'all',
         summaryData: null,
         transactionsData: null,
-        budgetConfig: {},
+        budgetConfig: [],
         categories: {
-            income: ["เงินเดือน", "สปีเก็ตต้า", "Giftgy", "Part time", "ปันผลหุ้น", "รายได้เสริม", "อื่นๆ"],
-            expense: ["อาหาร", "ของใช้ส่วนตัว", "วัตถุดิบอาหาร", "7-ELEVEN", "เดินทาง", "เครื่องดื่ม", "ของใช้", "เปย์ตัวเอง", "Enjoy", "อื่นๆ", "ท่องเที่ยว", "Instellment", "Gift"],
-            saving_groups: ["หุ้น", "Saving", "Self invesment", "เจ็บป่วย", "ETF", "Crypto", "กองทุนลดหย่อนภาษี", "Cash Invesment", "Gold"],
-            saving_types: ["ออม", "ซื้อ", "ขาย", "Spend"]
+            income: ["เงินเดือน", "อื่นๆ"],
+            expense: ["อาหาร", "เดินทาง", "ของใช้ส่วนตัว"],
+            saving_groups: ["หุ้น", "กองทุน"],
+            saving_types: ["ซื้อ", "ขาย", "ออม", "spend"]
         },
         chartInstance: null
     };
@@ -42,8 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         navItems: document.querySelectorAll('.nav-item'),
         pageViews: document.querySelectorAll('.page-view'),
-        badgeConn: document.getElementById('connection-badge'),
-        connText: document.getElementById('conn-text'),
+        badgeConn: document.getElementById('badge-conn'),
+        btnSync: document.getElementById('btn-sync'),
         kpiIncome: document.getElementById('kpi-income'),
         kpiExpense: document.getElementById('kpi-expense'),
         kpiSaving: document.getElementById('kpi-saving'),
@@ -67,9 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
         txForm: document.getElementById('tx-form'),
         historyFilterBtns: document.querySelectorAll('.history-tabs .segmented-btn'),
         historyList: document.getElementById('history-list'),
-        statusBox: document.getElementById('status-box'),
-        budgetForm: document.getElementById('budget-form'),
-        btnSaveBudget: document.getElementById('btn-save-budget'),
         toast: document.getElementById('toast')
     };
 
@@ -93,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function showToast(message, duration = 3000) {
+        if (!elements.toast) return;
         elements.toast.textContent = message;
         elements.toast.classList.add('show');
         setTimeout(() => elements.toast.classList.remove('show'), duration);
@@ -106,26 +104,57 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/config');
             const data = await res.json();
-            if (data.configured) {
-                elements.badgeConn.className = "badge badge-success";
-                elements.connText.textContent = "Google Sheets Connected";
+            if (data.status === "success") {
+                if (elements.badgeConn) {
+                    elements.badgeConn.className = "badge badge-success";
+                    elements.badgeConn.textContent = "Connected";
+                }
             } else {
-                elements.badgeConn.className = "badge badge-warning";
-                elements.connText.textContent = "Mock Mode";
+                if (elements.badgeConn) {
+                    elements.badgeConn.className = "badge badge-warning";
+                    elements.badgeConn.textContent = "Mock Mode";
+                }
             }
         } catch (e) {
             console.error(e);
         }
     }
 
+    if (elements.btnSync) {
+        elements.btnSync.addEventListener('click', async () => {
+            const originalHtml = elements.btnSync.innerHTML;
+            elements.btnSync.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Syncing...';
+            elements.btnSync.disabled = true;
+            lucide.createIcons();
+            
+            try {
+                const res = await fetch('/api/sync', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("ดึงข้อมูลจาก Google Sheets สำเร็จ!");
+                    await loadCategories();
+                    await loadBudgetConfig();
+                } else {
+                    showToast("เกิดข้อผิดพลาดในการ Sync");
+                }
+            } catch (err) {
+                showToast("ไม่สามารถติดต่อ Server ได้");
+            } finally {
+                elements.btnSync.innerHTML = originalHtml;
+                elements.btnSync.disabled = false;
+                lucide.createIcons();
+            }
+        });
+    }
+
     async function loadCategories() {
         try {
             const res = await fetch('/api/categories');
             const data = await res.json();
-            if (data.expense_categories) state.categories.expense = data.expense_categories;
-            if (data.income_categories) state.categories.income = data.income_categories;
-            if (data.saving_groups) state.categories.saving_groups = data.saving_groups;
-            if (data.saving_types) state.categories.saving_types = data.saving_types;
+            if (data["รายจ่าย"]) state.categories.expense = data["รายจ่าย"];
+            if (data["รายรับ"]) state.categories.income = data["รายรับ"];
+            if (data["saving_groups"]) state.categories.saving_groups = data["saving_groups"];
+            if (data["saving_types"]) state.categories.saving_types = data["saving_types"];
             updateFormFields();
         } catch (e) {
             console.error(e);
@@ -139,13 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             state.summaryData = data;
 
-            elements.kpiIncome.textContent = formatTHB(data.income_total);
-            elements.kpiExpense.textContent = formatTHB(data.expense_total);
-            elements.kpiSaving.textContent = formatTHB(data.saving_total);
-            elements.kpiBalance.textContent = formatTHB(data.balance);
+            if (elements.kpiIncome) elements.kpiIncome.textContent = formatTHB(data["รายรับ"]);
+            if (elements.kpiExpense) elements.kpiExpense.textContent = formatTHB(data["รายจ่าย"]);
+            if (elements.kpiSaving) elements.kpiSaving.textContent = formatTHB(data["เงินออม/ลงทุน"]);
+            if (elements.kpiBalance) elements.kpiBalance.textContent = formatTHB(data["ยอดคงเหลือ"]);
 
             renderChart();
-            renderBudgetProgress();
         } catch (e) {
             console.error("Error loading summary:", e);
         }
@@ -163,10 +191,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderChart() {
         if (!state.summaryData) return;
+        // In the updated API, summary just gives totals. Chart needs expense breakdown, which is now in budgetConfig!
+        if (!state.budgetConfig || state.budgetConfig.length === 0) return;
         
-        const catData = state.summaryData.expense_by_category || {};
-        let labels = Object.keys(catData);
-        let values = Object.values(catData);
+        const usedItems = state.budgetConfig.filter(i => i.used > 0);
+        let labels = usedItems.map(i => i.category);
+        let values = usedItems.map(i => i.used);
         let colors = [];
 
         if (labels.length === 0) {
@@ -177,10 +207,14 @@ document.addEventListener('DOMContentLoaded', () => {
             colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
         }
 
-        const totalExpense = values.reduce((a, b) => a + b, 0);
-        elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
+        const totalExpense = state.summaryData["รายจ่าย"] || 0;
+        if (elements.chartTotalVal) {
+            elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
+        }
 
-        const ctx = document.getElementById('expenseChart').getContext('2d');
+        const ctxElem = document.getElementById('expenseChart');
+        if (!ctxElem) return;
+        const ctx = ctxElem.getContext('2d');
         if (state.chartInstance) state.chartInstance.destroy();
 
         state.chartInstance = new Chart(ctx, {
@@ -225,14 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderBudgetProgress() {
-        if (!state.summaryData || !state.budgetConfig) return;
-        const actuals = state.summaryData.expense_by_category || {};
+        if (!state.budgetConfig || !Array.isArray(state.budgetConfig)) return;
         const container = elements.budgetProgressList;
+        if (!container) return;
         container.innerHTML = '';
 
-        state.categories.expense.forEach(cat => {
-            const actual = actuals[cat] || 0;
-            const budget = state.budgetConfig[cat] || 0;
+        state.budgetConfig.forEach(item => {
+            const cat = item.category;
+            const budget = item.limit || 0;
+            const actual = item.used || 0;
+            
             if (budget === 0 && actual === 0) return;
 
             const pct = budget > 0 ? Math.min(Math.round((actual / budget) * 100), 100) : (actual > 0 ? 100 : 0);
@@ -268,35 +304,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    elements.monthSelect.addEventListener('change', (e) => {
-        state.currentMonth = parseInt(e.target.value);
-        loadSummary();
-        loadBudgetConfig();
-    });
+    if (elements.monthSelect) {
+        elements.monthSelect.addEventListener('change', (e) => {
+            state.currentMonth = parseInt(e.target.value);
+            loadSummary();
+            loadBudgetConfig();
+        });
+    }
 
-    elements.dayPicker.addEventListener('change', (e) => {
-        state.currentDay = e.target.value;
-        loadSummary();
-    });
+    if (elements.dayPicker) {
+        elements.dayPicker.addEventListener('change', (e) => {
+            state.currentDay = e.target.value;
+            loadSummary();
+        });
+    }
 
     function updateFormFields() {
         const type = state.txType;
+        if (!elements.txNameContainer) return;
         elements.txNameContainer.innerHTML = '';
 
-        if (type === 'expense') {
+        if (type === 'รายจ่าย' || type === 'expense') {
             let optionsHtml = state.categories.expense.map(c => `<option value="${c}">${c}</option>`).join('');
-            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-select" required>${optionsHtml}</select>`;
+            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-input" required>${optionsHtml}</select>`;
             elements.savingFields.style.display = 'none';
-        } else if (type === 'income') {
+        } else if (type === 'รายรับ' || type === 'income') {
             let optionsHtml = state.categories.income.map(c => `<option value="${c}">${c}</option>`).join('');
-            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-select" required>${optionsHtml}</select>`;
+            elements.txNameContainer.innerHTML = `<select id="tx-name" class="form-input" required>${optionsHtml}</select>`;
             elements.savingFields.style.display = 'none';
-        } else if (type === 'saving') {
+        } else if (type === 'เงินออม/ลงทุน' || type === 'saving') {
             elements.txNameContainer.innerHTML = `<input type="text" id="tx-name" class="form-input" placeholder="เช่น Make, KS, InnovestX" required>`;
             elements.savingFields.style.display = 'block';
 
-            elements.txSavingType.innerHTML = state.categories.saving_types.map(t => `<option value="${t}">${t}</option>`).join('');
-            elements.txSavingGroup.innerHTML = state.categories.saving_groups.map(g => `<option value="${g}">${g}</option>`).join('');
+            if (elements.txSavingType) {
+                elements.txSavingType.innerHTML = `<option value="" disabled selected>เลือกประเภท...</option>` + state.categories.saving_types.map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+            if (elements.txSavingGroup) {
+                elements.txSavingGroup.innerHTML = `<option value="" disabled selected>เลือกกลุ่ม...</option>` + state.categories.saving_groups.map(g => `<option value="${g}">${g}</option>`).join('');
+            }
         }
     }
 
@@ -304,54 +349,61 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', () => {
             elements.typeTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            state.txType = tab.getAttribute('data-type');
+            let typeCode = tab.getAttribute('data-type');
+            if (typeCode === 'expense') state.txType = 'รายจ่าย';
+            if (typeCode === 'income') state.txType = 'รายรับ';
+            if (typeCode === 'saving') state.txType = 'เงินออม/ลงทุน';
+            
             elements.txTypeInput.value = state.txType;
             updateFormFields();
         });
     });
 
-    elements.txForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const saveBtn = document.getElementById('btn-save-tx');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `<i data-lucide="loader-2"></i> กำลังบันทึก...`;
-        lucide.createIcons();
-
-        const nameInput = document.getElementById('tx-name');
-        const payload = {
-            type: state.txType,
-            date: elements.txDateInput.value,
-            name: nameInput ? nameInput.value : '',
-            amount: parseFloat(elements.txAmountInput.value),
-            note: elements.txNoteInput.value,
-            saving_type: state.txType === 'saving' ? elements.txSavingType.value : '',
-            saving_group: state.txType === 'saving' ? elements.txSavingGroup.value : ''
-        };
-
-        try {
-            const res = await fetch('/api/transaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                showToast("✨ บันทึกเรียบร้อยแล้ว!");
-                elements.txAmountInput.value = '';
-                elements.txNoteInput.value = '';
-                loadSummary();
-            } else {
-                showToast("❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถบันทึกได้"));
-            }
-        } catch (err) {
-            showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
-        } finally {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = `<i data-lucide="save"></i> บันทึกข้อมูลลง Google Sheets`;
+    if (elements.txForm) {
+        elements.txForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const saveBtn = document.getElementById('btn-save-tx');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
             lucide.createIcons();
-        }
-    });
+
+            const nameInput = document.getElementById('tx-name');
+            const payload = {
+                type: state.txType,
+                date: elements.txDateInput.value,
+                category: nameInput ? nameInput.value : '',
+                amount: parseFloat(elements.txAmountInput.value),
+                note: elements.txNoteInput.value,
+                saving_type: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingType ? elements.txSavingType.value : '') : '',
+                saving_group: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingGroup ? elements.txSavingGroup.value : '') : ''
+            };
+
+            try {
+                const res = await fetch('/api/transaction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast("✨ บันทึกเรียบร้อยแล้ว!");
+                    elements.txAmountInput.value = '';
+                    elements.txNoteInput.value = '';
+                    loadSummary();
+                    loadBudgetConfig();
+                } else {
+                    showToast("❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถบันทึกได้"));
+                }
+            } catch (err) {
+                showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i data-lucide="save"></i> บันทึกข้อมูลลง Google Sheets`;
+                lucide.createIcons();
+            }
+        });
+    }
 
     async function loadTransactions() {
         try {
@@ -368,11 +420,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderTransactionHistory() {
         if (!state.transactionsData) return;
         const container = elements.historyList;
+        if (!container) return;
         container.innerHTML = '';
 
-        let txs = state.transactionsData.transactions || [];
+        let txs = state.transactionsData || [];
         if (state.historyFilter !== 'all') {
-            txs = txs.filter(t => t.type === state.historyFilter);
+            let filterType = state.historyFilter === 'expense' ? 'รายจ่าย' : (state.historyFilter === 'income' ? 'รายรับ' : 'เงินออม/ลงทุน');
+            txs = txs.filter(t => t.type === filterType);
         }
 
         if (txs.length === 0) {
@@ -383,15 +437,16 @@ document.addEventListener('DOMContentLoaded', () => {
         txs.forEach(t => {
             let iconName = 'arrow-down-right';
             let sign = '-';
-            if (t.type === 'income') { iconName = 'arrow-up-right'; sign = '+'; }
-            if (t.type === 'saving') { iconName = 'piggy-bank'; sign = ''; }
+            let typeClass = 'expense';
+            if (t.type === 'รายรับ') { iconName = 'arrow-up-right'; sign = '+'; typeClass = 'income'; }
+            if (t.type === 'เงินออม/ลงทุน') { iconName = 'piggy-bank'; sign = ''; typeClass = 'saving'; }
 
             const itemHtml = `
-                <div class="tx-item tx-${t.type}">
+                <div class="tx-item tx-${typeClass}">
                     <div class="tx-left">
                         <div class="tx-icon"><i data-lucide="${iconName}"></i></div>
                         <div class="tx-details">
-                            <span class="tx-title">${t.name}</span>
+                            <span class="tx-title">${t.category}</span>
                             <span class="tx-sub">${t.date} ${t.note ? '• ' + t.note : ''}</span>
                         </div>
                     </div>
@@ -412,35 +467,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    async function loadConfigAndBudget() {
-        const statusRes = await fetch('/api/config');
-        const status = await statusRes.json();
-        elements.statusBox.innerHTML = `
-            <p><strong>สถานะการเชื่อมต่อ:</strong> ${status.configured ? '<span style="color: #10b981;">Connected (เชื่อมต่อแล้ว)</span>' : '<span style="color: #d97706;">Mock Mode (ยังไม่ได้ใส่ Credentials)</span>'}</p>
-            <p style="margin-top: 4px;"><strong>Google Sheet ID:</strong> ${status.spreadsheet_id || 'ยังไม่ได้กำหนด'}</p>
-        `;
-
-        const budgetRes = await fetch(`/api/budget?year=${state.currentYear}&month=${state.currentMonth}`);
-        const budget = await budgetRes.json();
-        const container = document.getElementById('budget-overview-list');
-        if (container) {
-            container.innerHTML = '';
-            state.categories.expense.forEach(cat => {
-                const val = budget[cat] || 0;
-                const cardHtml = `
-                    <div class="budget-overview-card">
-                        <span class="budget-ov-cat">${cat}</span>
-                        <span class="budget-ov-val">฿${val.toLocaleString()}</span>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', cardHtml);
-            });
-        }
-    }
-
     // Initialize Application
     checkConfig();
-    loadCategories();
+    loadCategories().then(() => {
+        // Trigger initial type mapping
+        const activeTab = document.querySelector('.type-tab.active');
+        if(activeTab) activeTab.click();
+    });
     loadBudgetConfig();
     loadSummary();
 });

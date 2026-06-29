@@ -1,5 +1,3 @@
-
-
 // Helper to format date to Thai locale strings
 function formatThaiDate(dateStr) {
   const date = new Date(dateStr);
@@ -65,22 +63,57 @@ export async function onRequest(context) {
       return jsonResponse({ status: "success", message: "Cloudflare Backend is running" });
     }
 
-    // 2. GET /api/categories
+    // 2. POST /api/sync
+    if (path === '/api/sync' && request.method === 'POST') {
+      const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL;
+      if (!appsScriptUrl) return jsonResponse({ error: "No Apps Script URL" }, 400);
+      
+      const res = await fetch(appsScriptUrl);
+      const data = await res.json();
+      
+      if (data.status === 'success') {
+        await env.DB.prepare("INSERT INTO sync_data (key, value, updated_at) VALUES ('raw_sheet', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(data.data)).run();
+        return jsonResponse({ success: true });
+      }
+      return jsonResponse({ error: "Failed to fetch from Google Sheets" }, 500);
+    }
+
+    // 3. GET /api/categories
     if (path === '/api/categories' && request.method === 'GET') {
-      // Return basic categories (could be fetched from D1 or hardcoded)
-      const categories = {
-        "รายจ่าย": ["อาหาร", "เดินทาง", "ของใช้ส่วนตัว", "เครื่องดื่ม", "Enjoy", "7-ELEVEN", "ของใช้", "อื่นๆ"],
-        "รายรับ": ["เงินเดือน", "โบนัส", "อื่นๆ"],
-        "เงินออม/ลงทุน": ["เงินออมฉุกเฉิน", "หุ้น", "กองทุน"]
+      let raw = null;
+      try {
+        const row = await env.DB.prepare("SELECT value FROM sync_data WHERE key = 'raw_sheet'").first();
+        if (row) raw = JSON.parse(row.value);
+      } catch (e) {
+        console.error("No sync data found");
+      }
+
+      let categories = {
+        "รายจ่าย": ["อาหาร", "เดินทาง", "ของใช้ส่วนตัว"],
+        "รายรับ": ["เงินเดือน", "อื่นๆ"],
+        "เงินออม/ลงทุน": ["หุ้น", "กองทุน"],
+        "saving_groups": ["Port 1", "Port 2"],
+        "saving_types": ["ซื้อ", "ขาย", "ออม", "spend"]
       };
+
+      if (raw && raw.length > 70) {
+        categories["รายรับ"] = [];
+        for (let i = 8; i <= 27; i++) if (raw[i][1]) categories["รายรับ"].push(raw[i][1]);
+        
+        categories["รายจ่าย"] = [];
+        for (let i = 32; i <= 49; i++) if (raw[i][1]) categories["รายจ่าย"].push(raw[i][1]);
+        
+        categories["saving_groups"] = [];
+        for (let i = 54; i <= 72; i++) if (raw[i][1]) categories["saving_groups"].push(raw[i][1]);
+      }
       return jsonResponse(categories);
     }
 
-    // 3. POST /api/transaction
+    // 4. POST /api/transaction
     if (path === '/api/transaction' && request.method === 'POST') {
       const body = await request.json();
       const category = body.category || body.name;
-      const { date, type, amount, note } = body;
+      const { date, type, amount, note, saving_type, saving_group } = body;
 
       if (!date || !type || !category || amount == null) {
         return jsonResponse({ error: "Missing required fields" }, 400);
@@ -88,16 +121,16 @@ export async function onRequest(context) {
 
       // Save to D1
       const result = await env.DB.prepare(
-        "INSERT INTO transactions (date, type, category, amount, note) VALUES (?, ?, ?, ?, ?)"
-      ).bind(date, type, category, amount, note || "").run();
+        "INSERT INTO transactions (date, type, category, amount, note, saving_type, saving_group) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      ).bind(date, type, category, amount, note || "", saving_type || "", saving_group || "").run();
 
-      // Async sync to Google Sheets (don't await to block the response)
-      context.waitUntil(appendToGoogleSheet(env, { date, type, category, amount, note }));
+      // Async sync to Google Sheets
+      context.waitUntil(appendToGoogleSheet(env, { date, type, category, amount, note, saving_type, saving_group }));
 
       return jsonResponse({ success: true, id: result.lastRowId });
     }
 
-    // 4. GET /api/transactions
+    // 5. GET /api/transactions
     if (path === '/api/transactions' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
@@ -118,7 +151,7 @@ export async function onRequest(context) {
       return jsonResponse(results);
     }
 
-    // 5. GET /api/summary
+    // 6. GET /api/summary
     if (path === '/api/summary' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
@@ -146,6 +179,8 @@ export async function onRequest(context) {
       results.forEach(row => {
         if (summary[row.type] !== undefined) {
           summary[row.type] = row.total;
+        } else if (row.type === 'saving' || row.type === 'ออม') {
+          summary["เงินออม/ลงทุน"] += row.total;
         }
       });
       
@@ -154,23 +189,31 @@ export async function onRequest(context) {
       return jsonResponse(summary);
     }
 
-    // 6. GET /api/budget
+    // 7. GET /api/budget
     if (path === '/api/budget' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
       
-      // Fetch budget config (Hardcoded for now as per budget_config.json, or from D1)
-      const limits = {
-        "อาหาร": 8000,
-        "เดินทาง": 3000,
-        "ของใช้ส่วนตัว": 2000,
-        "เครื่องดื่ม": 1500,
-        "Enjoy": 3000,
-        "7-ELEVEN": 1500,
-        "ของใช้": 2000,
-        "อื่นๆ": 2000
-      };
+      let raw = null;
+      try {
+        const row = await env.DB.prepare("SELECT value FROM sync_data WHERE key = 'raw_sheet'").first();
+        if (row) raw = JSON.parse(row.value);
+      } catch (e) {}
+
+      let limits = {};
       
+      if (raw && raw.length > 50 && month) {
+        const monthIndex = parseInt(month, 10) - 1; // 0 to 11
+        const colIndex = 58 + monthIndex; // BG is index 58 (0-indexed A=0? Wait, A is 0, B is 1... BG is 58)
+        
+        for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49
+          const cat = raw[i][1]; // Column B is index 1
+          if (cat) {
+            limits[cat] = parseFloat(raw[i][colIndex]) || 0;
+          }
+        }
+      }
+
       // Fetch current usage for expenses
       let query = "SELECT category, SUM(amount) as used FROM transactions WHERE type = 'รายจ่าย'";
       let params = [];

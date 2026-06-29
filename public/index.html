@@ -22,15 +22,18 @@
                 <div class="app-logo">
                     <i data-lucide="wallet"></i>
                 </div>
-                <div>
-                    <h1 class="app-title">Finance Tracker</h1>
-                    <p class="app-subtitle">สมุดบัญชีรายรับ-รายจ่าย 2026</p>
+                <div class="glass-panel text-center fade-in delay-2" style="position: relative;">
+                <h1 class="text-xl font-bold" style="color: var(--primary);">Finance Tracker</h1>
+                <p class="text-sm opacity-70">สมุดบัญชีรายรับ-รายจ่าย 2026</p>
+                <div class="conn-status">
+                    <span id="badge-conn" class="badge badge-warning">Checking...</span>
                 </div>
+                <button id="btn-sync" class="btn btn-secondary" style="position: absolute; top: 1rem; right: 1rem; padding: 0.5rem; font-size: 0.8rem;">
+                    <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Sync Sheet
+                </button>
+            </div>
             </div>
             <div class="header-right">
-                <div id="connection-badge" class="badge badge-warning" title="Google Sheets connection status">
-                    <span class="dot"></span> <span id="conn-text">Mock Mode</span>
-                </div>
             </div>
         </header>
 
@@ -171,24 +174,17 @@
                         <!-- Specific fields for Saving + Investment -->
                         <div id="saving-fields" style="display: none;">
                             <div class="form-field">
-                                <label for="tx-saving-type"><i data-lucide="layers"></i> ประเภทรายการออม</label>
-                                <select id="tx-saving-type" class="form-select">
-                                    <option value="ออม">ออม</option>
-                                    <option value="ซื้อ">ซื้อ</option>
-                                    <option value="ขาย">ขาย</option>
-                                    <option value="Spend">Spend</option>
+                                <label for="tx-saving-type"><i data-lucide="tag"></i> ประเภท (เฉพาะออม/ลงทุน)</label>
+                                <select id="tx-saving-type" class="form-input">
+                                    <option value="" disabled selected>เลือกประเภท...</option>
+                                    <!-- Dynamic options -->
                                 </select>
                             </div>
                             <div class="form-field">
-                                <label for="tx-saving-group"><i data-lucide="folder"></i> กลุ่มสินทรัพย์ / เป้าหมาย</label>
-                                <select id="tx-saving-group" class="form-select">
-                                    <option value="Saving">Saving</option>
-                                    <option value="Self invesment">Self invesment</option>
-                                    <option value="เจ็บป่วย">เจ็บป่วย</option>
-                                    <option value="Cash Invesment">Cash Invesment</option>
-                                    <option value="หุ้น">หุ้น</option>
-                                    <option value="ETF">ETF</option>
-                                    <option value="Crypto">Crypto</option>
+                                <label for="tx-saving-group"><i data-lucide="layers"></i> กลุ่ม (เฉพาะออม/ลงทุน)</label>
+                                <select id="tx-saving-group" class="form-input">
+                                    <option value="" disabled selected>เลือกกลุ่ม...</option>
+                                    <!-- Dynamic options -->
                                 </select>
                             </div>
                         </div>
