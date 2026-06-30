@@ -7,7 +7,7 @@ function formatThaiDate(dateStr) {
 
 // === นำ URL ของ Google Apps Script มาวางในเครื่องหมายคำพูดด้านล่างนี้ ===
 // ตัวอย่าง: const HARDCODED_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfyc.../exec";
-const HARDCODED_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJU4bpiYSOYMPE2OG4EnWu4u_Dkmo6ljYjVSZzkJyRwhMRk2aAp7hgLd2x1grq9fMe/exec"; 
+const HARDCODED_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIQbgzWmXk0QdI84wE_FmCu4e1h-t5KZnTSHREPVsfZGBxMSfVbmJ9ZC9VCQMaXMROg/exec"; 
 // ======================================================================
 
 // Ensure valid response format
