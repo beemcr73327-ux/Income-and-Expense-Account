@@ -184,7 +184,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadSummary() {
         try {
-            const url = `/api/summary?year=${state.currentYear}&month=${state.currentMonth}`;
+            let url = `/api/summary?year=${state.currentYear}`;
+            if (state.chartView === 'month') {
+                url += `&month=${state.currentMonth}`;
+            } else if (state.chartView === 'day') {
+                url += `&date=${state.currentDay}`;
+            }
+            
             const res = await fetch(url);
             const data = await res.json();
             state.summaryData = data;
@@ -203,7 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadBudgetConfig() {
         try {
-            const res = await fetch(`/api/budget?year=${state.currentYear}&month=${state.currentMonth}`);
+            let url = `/api/budget?year=${state.currentYear}`;
+            if (state.chartView === 'month') {
+                url += `&month=${state.currentMonth}`;
+            } else if (state.chartView === 'day') {
+                url += `&date=${state.currentDay}`;
+            }
+            
+            const res = await fetch(url);
             state.budgetConfig = await res.json();
             renderBudgetProgress();
         } catch (e) {
@@ -465,7 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadTransactions() {
         try {
-            const url = `/api/transactions?year=${state.currentYear}&month=${state.currentMonth}`;
+            let url = `/api/transactions?year=${state.currentYear}`;
+            if (state.chartView === 'month') {
+                url += `&month=${state.currentMonth}`;
+            } else if (state.chartView === 'day') {
+                url += `&date=${state.currentDay}`;
+            }
+            
             const res = await fetch(url);
             const data = await res.json();
             state.transactionsData = data;

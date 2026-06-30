@@ -196,15 +196,21 @@ export async function onRequest(context) {
     if (path === '/api/transactions' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
+      const dateParam = url.searchParams.get('date');
       
       let query = "SELECT * FROM transactions";
       let params = [];
       
-      if (year && month) {
+      if (dateParam) {
+        query += " WHERE date = ?";
+        params.push(dateParam);
+      } else if (year && month) {
         const paddedMonth = month.padStart(2, '0');
-        const prefix = `${year}-${paddedMonth}-`;
         query += " WHERE date LIKE ?";
-        params.push(`${prefix}%`);
+        params.push(`${year}-${paddedMonth}-%`);
+      } else if (year) {
+        query += " WHERE date LIKE ?";
+        params.push(`${year}-%`);
       }
       
       query += " ORDER BY date DESC, id DESC LIMIT 100";
@@ -217,15 +223,21 @@ export async function onRequest(context) {
     if (path === '/api/summary' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
+      const dateParam = url.searchParams.get('date');
       
       let query = "SELECT type, SUM(amount) as total FROM transactions";
       let params = [];
       
-      if (year && month) {
+      if (dateParam) {
+        query += " WHERE date = ?";
+        params.push(dateParam);
+      } else if (year && month) {
         const paddedMonth = month.padStart(2, '0');
-        const prefix = `${year}-${paddedMonth}-`;
         query += " WHERE date LIKE ?";
-        params.push(`${prefix}%`);
+        params.push(`${year}-${paddedMonth}-%`);
+      } else if (year) {
+        query += " WHERE date LIKE ?";
+        params.push(`${year}-%`);
       }
       
       query += " GROUP BY type";
@@ -277,14 +289,19 @@ export async function onRequest(context) {
       }
 
       // Fetch current usage for expenses
-      let query = "SELECT category, SUM(amount) as used FROM transactions WHERE type = 'รายจ่าย'";
+      let query = "SELECT category, SUM(amount) as used FROM transactions WHERE type IN ('expense', 'รายจ่าย')";
       let params = [];
       
-      if (year && month) {
+      if (dateParam) {
+        query += " AND date = ?";
+        params.push(dateParam);
+      } else if (year && month) {
         const paddedMonth = month.padStart(2, '0');
-        const prefix = `${year}-${paddedMonth}-`;
         query += " AND date LIKE ?";
-        params.push(`${prefix}%`);
+        params.push(`${year}-${paddedMonth}-%`);
+      } else if (year) {
+        query += " AND date LIKE ?";
+        params.push(`${year}-%`);
       }
       
       query += " GROUP BY category";
