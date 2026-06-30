@@ -125,6 +125,21 @@ export async function onRequest(context) {
       return jsonResponse({ status: "success", message: "Cloudflare Backend is running" });
     }
 
+    // 1.5 GET /api/reset (Clear Database History)
+    if (path === '/api/reset' && request.method === 'GET') {
+      const key = url.searchParams.get('key');
+      if (key !== 'clear1234') {
+        return jsonResponse({ error: "Unauthorized. Please provide the correct key." }, 401);
+      }
+      try {
+        await env.DB.prepare("DELETE FROM transactions").run();
+        await env.DB.prepare("DELETE FROM sync_data").run();
+        return jsonResponse({ success: true, message: "ประวัติการบันทึกถูกลบเรียบร้อยแล้ว (Database has been reset successfully.)" });
+      } catch (e) {
+        return jsonResponse({ error: "Failed to reset database", details: e.message }, 500);
+      }
+    }
+
     // 2. POST /api/sync
     if (path === '/api/sync' && request.method === 'POST') {
       const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
