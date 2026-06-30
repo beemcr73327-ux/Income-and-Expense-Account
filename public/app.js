@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnSync) {
                     btnSync.style.color = "#10b981";
                     btnSync.style.background = "rgba(16, 185, 129, 0.1)";
+                    btnSync.innerHTML = '<i data-lucide="refresh-cw"></i>';
                 }
             } else {
                 if (badge) {
@@ -124,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnSync) {
                     btnSync.style.color = "#ef4444";
                     btnSync.style.background = "rgba(239, 68, 68, 0.1)";
+                    btnSync.innerHTML = '<i data-lucide="refresh-cw"></i>';
                 }
             }
         } catch (e) {
@@ -137,6 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnSync) {
                 btnSync.style.color = "#ef4444";
                 btnSync.style.background = "rgba(239, 68, 68, 0.1)";
+                btnSync.innerHTML = '<i data-lucide="refresh-cw"></i>';
+            }
+        } finally {
+            if (document.getElementById('btn-sync')) {
+                lucide.createIcons();
             }
         }
     }
