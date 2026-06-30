@@ -267,6 +267,7 @@ export async function onRequest(context) {
     if (path === '/api/budget' && request.method === 'GET') {
       const year = url.searchParams.get('year');
       const month = url.searchParams.get('month');
+      const dateParam = url.searchParams.get('date');
       
       let raw = null;
       try {

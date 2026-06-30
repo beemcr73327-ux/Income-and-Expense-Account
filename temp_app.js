@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.btnSync) {
         elements.btnSync.addEventListener('click', async () => {
             const originalHtml = elements.btnSync.innerHTML;
-            elements.btnSync.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+            elements.btnSync.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Syncing...';
             elements.btnSync.disabled = true;
             lucide.createIcons();
             
