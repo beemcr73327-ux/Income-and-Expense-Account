@@ -28,7 +28,7 @@
             </div>
             <div class="header-right">
                 <button id="btn-sync" class="btn btn-icon" title="Sync Sheet" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; cursor: pointer; transition: all 0.3s ease;">
-                    <i data-lucide="refresh-cw"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 </button>
             </div>
         </header>
@@ -70,20 +70,18 @@
                     </div>
                 </div>
 
-                <!-- Chart Section -->
-                <div class="glass-card chart-card">
-                    <div class="card-header">
-                        <h2 class="card-title"><i data-lucide="pie-chart"></i> สัดส่วนค่าใช้จ่าย</h2>
-                        <!-- View Toggle -->
-                        <div class="segmented-control toggle-view">
+                <!-- Global Dashboard Filters -->
+                <div class="glass-card filter-card" style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <h2 class="card-title" style="margin: 0; font-size: 1.1rem;"><i data-lucide="filter"></i> ตัวกรองข้อมูล</h2>
+                        <div class="segmented-control toggle-view" style="margin: 0;">
                             <button class="segmented-btn active" data-view="year">ทั้งปี</button>
                             <button class="segmented-btn" data-view="month">รายเดือน</button>
                             <button class="segmented-btn" data-view="day">รายวัน</button>
                         </div>
                     </div>
 
-                    <!-- Filter Controls (Dynamic based on view toggle) -->
-                    <div class="chart-filters" id="chart-filters">
+                    <div class="chart-filters" id="chart-filters" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.05);">
                         <div class="filter-group" id="month-filter-group" style="display: none;">
                             <label for="month-select"><i data-lucide="calendar"></i> เลือกเดือน:</label>
                             <select id="month-select" class="form-select">
@@ -105,6 +103,23 @@
                             <label for="day-picker"><i data-lucide="calendar"></i> เลือกวันที่:</label>
                             <input type="date" id="day-picker" class="form-input">
                         </div>
+                    </div>
+                </div>
+
+                <!-- Actual vs Budget Comparison Section -->
+                <div class="glass-card budget-section" id="budget-section" style="margin-bottom: 20px;">
+                    <div class="card-header">
+                        <h2 class="card-title"><i data-lucide="target"></i> เปรียบเทียบ งบประมาณ (Actual vs Budget)</h2>
+                    </div>
+                    <div class="budget-list" id="budget-progress-list">
+                        <!-- Progress bars rendered via JS -->
+                    </div>
+                </div>
+
+                <!-- Chart Section -->
+                <div class="glass-card chart-card">
+                    <div class="card-header">
+                        <h2 class="card-title" style="color: #f43f5e;"><i data-lucide="pie-chart"></i> สัดส่วนค่าใช้จ่าย</h2>
                     </div>
 
                     <!-- Chart Canvas for Expense -->
@@ -129,16 +144,6 @@
                             <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">รวมรายรับ</span>
                             <div id="chart-income-val" style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">฿0</div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Actual vs Budget Comparison Section -->
-                <div class="glass-card budget-section" id="budget-section">
-                    <div class="card-header">
-                        <h2 class="card-title"><i data-lucide="target"></i> เปรียบเทียบ งบประมาณ (Actual vs Budget)</h2>
-                    </div>
-                    <div class="budget-list" id="budget-progress-list">
-                        <!-- Progress bars rendered via JS -->
                     </div>
                 </div>
             </section>
