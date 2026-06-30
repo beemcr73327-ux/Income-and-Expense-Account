@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
             saving_groups: ["หุ้น", "กองทุน"],
             saving_types: ["ซื้อ", "ขาย", "ออม", "spend"]
         },
-        chartInstance: null
+        chartInstance: null,
+        incomeChartInstance: null
     };
 
     const CATEGORY_COLORS = {
@@ -104,19 +105,39 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/config');
             const data = await res.json();
+            const badge = elements.badgeConn;
+            const btnSync = document.getElementById('btn-sync');
             if (data.status === "success") {
-                if (elements.badgeConn) {
-                    elements.badgeConn.className = "badge badge-success";
-                    elements.badgeConn.textContent = "Connected";
+                if (badge) {
+                    badge.className = "badge badge-success";
+                    badge.textContent = "Connected";
+                }
+                if (btnSync) {
+                    btnSync.style.color = "#10b981";
+                    btnSync.style.background = "rgba(16, 185, 129, 0.1)";
                 }
             } else {
-                if (elements.badgeConn) {
-                    elements.badgeConn.className = "badge badge-warning";
-                    elements.badgeConn.textContent = "Mock Mode";
+                if (badge) {
+                    badge.className = "badge badge-warning";
+                    badge.textContent = "Mock Mode";
+                }
+                if (btnSync) {
+                    btnSync.style.color = "#ef4444";
+                    btnSync.style.background = "rgba(239, 68, 68, 0.1)";
                 }
             }
         } catch (e) {
             console.error(e);
+            const badge = elements.badgeConn;
+            const btnSync = document.getElementById('btn-sync');
+            if (badge) {
+                badge.className = "badge badge-error";
+                badge.textContent = "Disconnected";
+            }
+            if (btnSync) {
+                btnSync.style.color = "#ef4444";
+                btnSync.style.background = "rgba(239, 68, 68, 0.1)";
+            }
         }
     }
 
@@ -173,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elements.kpiSaving) elements.kpiSaving.textContent = formatTHB(data["เงินออม/ลงทุน"]);
             if (elements.kpiBalance) elements.kpiBalance.textContent = formatTHB(data["ยอดคงเหลือ"]);
 
+            await loadTransactions();
             renderChart();
         } catch (e) {
             console.error("Error loading summary:", e);
@@ -191,71 +213,107 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderChart() {
         if (!state.summaryData) return;
-        // In the updated API, summary just gives totals. Chart needs expense breakdown, which is now in budgetConfig!
-        if (!state.budgetConfig || state.budgetConfig.length === 0) return;
         
-        const usedItems = state.budgetConfig.filter(i => i.used > 0);
-        let labels = usedItems.map(i => i.category);
-        let values = usedItems.map(i => i.used);
-        let colors = [];
+        // --- 1. Expense Chart ---
+        if (state.budgetConfig && state.budgetConfig.length > 0) {
+            const usedItems = state.budgetConfig.filter(i => i.used > 0);
+            let labels = usedItems.map(i => i.category);
+            let values = usedItems.map(i => i.used);
+            let colors = [];
 
-        if (labels.length === 0) {
-            labels = ["ยังไม่มีรายการ"];
-            values = [1];
-            colors = ["#e2e8f0"];
-        } else {
-            colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
-        }
+            if (labels.length === 0) {
+                labels = ["ยังไม่มีรายการ"];
+                values = [1];
+                colors = ["#e2e8f0"];
+            } else {
+                colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
+            }
 
-        const totalExpense = state.summaryData["รายจ่าย"] || 0;
-        if (elements.chartTotalVal) {
-            elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
-        }
+            const totalExpense = state.summaryData["รายจ่าย"] || 0;
+            if (elements.chartTotalVal) {
+                elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
+            }
 
-        const ctxElem = document.getElementById('expenseChart');
-        if (!ctxElem) return;
-        const ctx = ctxElem.getContext('2d');
-        if (state.chartInstance) state.chartInstance.destroy();
+            const ctxElem = document.getElementById('expenseChart');
+            if (ctxElem) {
+                const ctx = ctxElem.getContext('2d');
+                if (state.chartInstance) state.chartInstance.destroy();
 
-        state.chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 3,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '75%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#475569',
-                            font: { family: 'Prompt', size: 11, weight: '600' },
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
+                state.chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }]
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '75%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+                            tooltip: { callbacks: { label: function(context) {
                                 if (context.label === "ยังไม่มีรายการ") return " ไม่มีข้อมูล";
                                 const val = context.raw;
                                 const pct = totalExpense > 0 ? ((val / totalExpense) * 100).toFixed(1) : 0;
                                 return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
-                            }
+                            }}}
                         }
                     }
-                }
+                });
             }
-        });
+        }
+
+        // --- 2. Income Chart ---
+        if (state.transactionsData) {
+            const incomes = state.transactionsData.filter(t => t.type === 'รายรับ');
+            const grouped = {};
+            let totalIncome = 0;
+            incomes.forEach(t => {
+                grouped[t.category] = (grouped[t.category] || 0) + t.amount;
+                totalIncome += t.amount;
+            });
+            
+            let incLabels = Object.keys(grouped);
+            let incValues = Object.values(grouped);
+            let incColors = [];
+
+            if (incLabels.length === 0) {
+                incLabels = ["ยังไม่มีรายการ"];
+                incValues = [1];
+                incColors = ["#e2e8f0"];
+            } else {
+                incColors = incLabels.map(l => CATEGORY_COLORS[l] || "#3b82f6");
+            }
+
+            const chartIncomeVal = document.getElementById('chart-income-val');
+            if (chartIncomeVal) {
+                chartIncomeVal.textContent = incLabels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalIncome);
+            }
+
+            const ctxIncElem = document.getElementById('incomeChart');
+            if (ctxIncElem) {
+                const ctxInc = ctxIncElem.getContext('2d');
+                if (state.incomeChartInstance) state.incomeChartInstance.destroy();
+
+                state.incomeChartInstance = new Chart(ctxInc, {
+                    type: 'doughnut',
+                    data: {
+                        labels: incLabels,
+                        datasets: [{ data: incValues, backgroundColor: incColors, borderWidth: 3, borderColor: '#ffffff' }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '75%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+                            tooltip: { callbacks: { label: function(context) {
+                                if (context.label === "ยังไม่มีรายการ") return " ไม่มีข้อมูล";
+                                const val = context.raw;
+                                const pct = totalIncome > 0 ? ((val / totalIncome) * 100).toFixed(1) : 0;
+                                return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
+                            }}}
+                        }
+                    }
+                });
+            }
+        }
     }
 
     function renderBudgetProgress() {

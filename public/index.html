@@ -17,23 +17,23 @@
 <body>
     <div class="app-container">
         <!-- Top Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <div class="app-logo">
+        <header class="app-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+            <div class="header-left" style="display: flex; align-items: center; gap: 15px;">
+                <div class="app-logo" style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);">
                     <i data-lucide="wallet"></i>
                 </div>
-                <div class="glass-panel text-center fade-in delay-2" style="position: relative;">
-                <h1 class="text-xl font-bold" style="color: var(--primary);">Finance Tracker</h1>
-                <p class="text-sm opacity-70">สมุดบัญชีรายรับ-รายจ่าย 2026</p>
-                <div class="conn-status">
-                    <span id="badge-conn" class="badge badge-warning">Checking...</span>
+                <div class="header-titles">
+                    <h1 class="text-xl font-bold" style="color: var(--primary); margin: 0; line-height: 1.2;">Finance Tracker</h1>
+                    <p class="text-sm opacity-70" style="margin: 0; margin-bottom: 5px;">สมุดบัญชีรายรับ-รายจ่าย 2026</p>
+                    <div class="conn-status">
+                        <span id="badge-conn" class="badge badge-warning" style="font-size: 0.75rem; padding: 2px 8px;">Checking...</span>
+                    </div>
                 </div>
-                <button id="btn-sync" class="btn btn-secondary" style="position: absolute; top: 1rem; right: 1rem; padding: 0.5rem; font-size: 0.8rem;">
-                    <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Sync Sheet
-                </button>
-            </div>
             </div>
             <div class="header-right">
+                <button id="btn-sync" class="btn btn-icon" title="Sync Sheet" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; cursor: pointer; transition: all 0.3s ease;">
+                    <i data-lucide="refresh-cw"></i>
+                </button>
             </div>
         </header>
 
@@ -111,12 +111,27 @@
                         </div>
                     </div>
 
-                    <!-- Donut Chart Container -->
-                    <div class="chart-container">
+                    <!-- Chart Canvas for Expense -->
+                    <div class="chart-container" style="position: relative; height: 250px; margin-top: 1.5rem; margin-bottom: 1rem;">
                         <canvas id="expenseChart"></canvas>
-                        <div id="chart-center-text" class="chart-center-text">
-                            <span class="center-label">รวมค่าใช้จ่าย</span>
-                            <span class="center-value" id="chart-total-val">฿0</span>
+                        <div class="chart-center-label" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">รวมรายจ่าย</span>
+                            <div id="chart-total-val" style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">฿0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Income Chart Section -->
+                <div class="glass-card chart-card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2 class="card-title" style="color: #10b981;"><i data-lucide="pie-chart"></i> สัดส่วนรายรับ</h2>
+                    </div>
+                    <!-- Chart Canvas for Income -->
+                    <div class="chart-container" style="position: relative; height: 250px; margin-top: 1.5rem; margin-bottom: 1rem;">
+                        <canvas id="incomeChart"></canvas>
+                        <div class="chart-center-label" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">รวมรายรับ</span>
+                            <div id="chart-income-val" style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">฿0</div>
                         </div>
                     </div>
                 </div>
