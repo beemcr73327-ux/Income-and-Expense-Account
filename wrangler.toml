@@ -10,7 +10,7 @@ database_id = "24d058e6-81c5-4d30-8efc-2154b35c7731" # The name of your database
 
 # Define environment variables (like Google Sheet ID)
 [vars]
-GOOGLE_SHEET_ID = "1Z6xVqi_19Wb_s_E3Sf-DxQirptnA7XsH_6Nvm457L4Q"
+GOOGLE_SHEET_ID = "1bf-IQV-9LAUYwLKxcWpTUEVMzpURG9K9T1FJtZkTG40"
 
 # Note: GOOGLE_SERVICE_ACCOUNT_JSON should be added as a Secret in Cloudflare dashboard,
 # not stored in plain text here.
