@@ -330,20 +330,28 @@ export async function onRequest(context) {
         // Each year takes 14 columns: 12 months + 1 yearly total + 1 gap
         const startCol = 58 + (targetYear - 2026) * 14;
         
+        const isDayView = !!dateParam;
+        const activeMonth = month ? parseInt(month, 10) : (isDayView ? parseInt(dateParam.split('-')[1], 10) : null);
+        
         let colIndex;
-        if (month) {
-          const monthIndex = parseInt(month, 10) - 1; // 0 to 11
+        if (activeMonth) {
+          const monthIndex = activeMonth - 1; // 0 to 11
           colIndex = startCol + monthIndex;
         } else {
           // Yearly budget is located right after the 12 months
           colIndex = startCol + 12;
         }
         
+        let divisor = 1;
+        if (isDayView && activeMonth) {
+          divisor = new Date(targetYear, activeMonth, 0).getDate();
+        }
+        
         for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49 (expense categories)
           const cat = raw[i][1]; // Column B is index 1
           if (cat) {
-            if (month) {
-              limits[cat] = parseFloat(raw[i][colIndex]) || 0;
+            if (activeMonth) {
+              limits[cat] = Math.round((parseFloat(raw[i][colIndex]) || 0) / divisor);
             } else {
               // Yearly view: Sum all 12 months (startCol to startCol + 11) 
               // plus fallback to BS column (startCol + 12) if it exists, though summing is safer

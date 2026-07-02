@@ -82,10 +82,10 @@
                     </div>
 
                     <!-- Filters -->
-                    <div class="filters-section" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <div class="filter-group" id="month-filter-group" style="flex: 1; display: none; align-items: center; gap: 10px;">
-                            <label for="month-select"><i data-lucide="calendar"></i> เลือกเดือน:</label>
-                            <select id="month-select" class="form-select">
+                    <div class="filters-section" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.05);">
+                        <div class="filter-group" id="month-filter-group" style="display: none; align-items: center; gap: 10px;">
+                            <label for="month-select" style="margin: 0; white-space: nowrap;"><i data-lucide="calendar"></i> เลือกเดือน:</label>
+                            <select id="month-select" class="form-select" style="flex: 1;">
                                 <option value="1">มกราคม</option>
                                 <option value="2">กุมภาพันธ์</option>
                                 <option value="3">มีนาคม</option>
@@ -100,9 +100,9 @@
                                 <option value="12">ธันวาคม</option>
                             </select>
                         </div>
-                        <div class="filter-group" id="day-filter-group" style="display: none;">
-                            <label for="day-picker"><i data-lucide="calendar"></i> เลือกวันที่:</label>
-                            <input type="date" id="day-picker" class="form-input">
+                        <div class="filter-group" id="day-filter-group" style="display: none; align-items: center; gap: 10px;">
+                            <label for="day-picker" style="margin: 0; white-space: nowrap;"><i data-lucide="calendar"></i> เลือกวันที่:</label>
+                            <input type="date" id="day-picker" class="form-input" style="flex: 1;">
                         </div>
                     </div>
                 </div>
