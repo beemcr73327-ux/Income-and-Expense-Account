@@ -58,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
         budgetProgressList: document.getElementById('budget-progress-list'),
         typeTabs: document.querySelectorAll('.type-tab'),
         txTypeInput: document.getElementById('tx-type'),
+        txIdInput: document.getElementById('tx-id'),
+        txForm: document.getElementById('tx-form'),
         txDateInput: document.getElementById('tx-date'),
         txNameContainer: document.getElementById('tx-name-container'),
         txAmountInput: document.getElementById('tx-amount'),
@@ -456,18 +458,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 saving_group: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingGroup ? elements.txSavingGroup.value : '') : ''
             };
 
+            let method = 'POST';
+            if (elements.txIdInput && elements.txIdInput.value) {
+                payload.id = elements.txIdInput.value;
+                method = 'PUT';
+            }
+
             try {
                 const res = await fetch('/api/transaction', {
-                    method: 'POST',
+                    method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
 
                 if (data.success) {
-                    showToast("✨ บันทึกเรียบร้อยแล้ว!");
+                    showToast(method === 'PUT' ? "✨ แก้ไขเรียบร้อยแล้ว!" : "✨ บันทึกเรียบร้อยแล้ว!");
                     elements.txAmountInput.value = '';
                     elements.txNoteInput.value = '';
+                    if (elements.txIdInput) elements.txIdInput.value = '';
                     loadSummary();
                     loadBudgetConfig();
                 } else {
@@ -534,12 +543,71 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="tx-sub">${t.date} ${t.note ? '• ' + t.note : ''}</span>
                         </div>
                     </div>
-                    <span class="tx-amount">${sign}฿${t.amount.toLocaleString()}</span>
+                    <div class="tx-right" style="display: flex; align-items: center; gap: 10px;">
+                        <span class="tx-amount">${sign}฿${t.amount.toLocaleString()}</span>
+                        <div class="tx-actions" style="display: flex; gap: 5px;">
+                            <button class="btn-icon btn-edit" data-id="${t.id}" style="width: 28px; height: 28px; padding: 0; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-radius: 6px; border: none; cursor: pointer;"><i data-lucide="edit-2" style="width: 14px; height: 14px;"></i></button>
+                            <button class="btn-icon btn-delete" data-id="${t.id}" style="width: 28px; height: 28px; padding: 0; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-radius: 6px; border: none; cursor: pointer;"><i data-lucide="trash-2" style="width: 14px; height: 14px;"></i></button>
+                        </div>
+                    </div>
                 </div>
             `;
             container.insertAdjacentHTML('beforeend', itemHtml);
         });
         lucide.createIcons();
+
+        // Attach event listeners for edit and delete
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const t = txs.find(x => x.id == id);
+                if (t) {
+                    let typeClass = 'tab-expense';
+                    if (t.type === 'รายรับ') typeClass = 'tab-income';
+                    if (t.type === 'เงินออม/ลงทุน') typeClass = 'tab-saving';
+                    document.querySelector(`.${typeClass}`).click();
+                    
+                    elements.txDateInput.value = t.date;
+                    elements.txAmountInput.value = t.amount;
+                    elements.txNoteInput.value = t.note || '';
+                    if (elements.txIdInput) elements.txIdInput.value = t.id;
+                    
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('tx-name');
+                        if (nameInput) nameInput.value = t.category;
+                        if (t.type === 'เงินออม/ลงทุน') {
+                            if (elements.txSavingType) elements.txSavingType.value = t.saving_type || '';
+                            if (elements.txSavingGroup) elements.txSavingGroup.value = t.saving_group || '';
+                        }
+                    }, 50);
+                    
+                    const tabBtn = document.querySelector('.tab-nav button[data-target="page-add"]');
+                    if(tabBtn) tabBtn.click();
+                    window.scrollTo(0,0);
+                }
+            });
+        });
+
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่? (ลบเฉพาะในเว็บแอป ไม่กระทบ Google Sheet)')) {
+                    const id = btn.getAttribute('data-id');
+                    try {
+                        const res = await fetch(`/api/transaction?id=${id}`, { method: 'DELETE' });
+                        const data = await res.json();
+                        if (data.success) {
+                            showToast("🗑️ ลบรายการแล้ว");
+                            loadSummary();
+                            loadBudgetConfig();
+                        } else {
+                            showToast("❌ ลบไม่สำเร็จ");
+                        }
+                    } catch (e) {
+                        showToast("❌ เกิดข้อผิดพลาด");
+                    }
+                }
+            });
+        });
     }
 
     elements.historyFilterBtns.forEach(btn => {
@@ -552,6 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Initialize Application
+    if (elements.monthSelect) {
+        elements.monthSelect.value = state.currentMonth;
+    }
     checkConfig();
     loadCategories().then(() => {
         // Trigger initial type mapping

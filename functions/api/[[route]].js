@@ -207,6 +207,38 @@ export async function onRequest(context) {
       return jsonResponse({ success: true, id: result.lastRowId });
     }
 
+    // 4.5 PUT /api/transaction (Update)
+    if (path === '/api/transaction' && request.method === 'PUT') {
+      const body = await request.json();
+      const { id, date, type, category, amount, note, saving_type, saving_group } = body;
+      
+      if (!id || !date || !type || !category || amount == null) {
+        return jsonResponse({ error: "Missing required fields" }, 400);
+      }
+      
+      try {
+        await env.DB.prepare(
+          "UPDATE transactions SET date=?, type=?, category=?, amount=?, note=?, saving_type=?, saving_group=? WHERE id=?"
+        ).bind(date, type, category, amount, note || "", saving_type || "", saving_group || "", id).run();
+        return jsonResponse({ success: true });
+      } catch (e) {
+        return jsonResponse({ error: "Update failed", details: e.message }, 500);
+      }
+    }
+
+    // 4.6 DELETE /api/transaction (Delete)
+    if (path === '/api/transaction' && request.method === 'DELETE') {
+      const id = url.searchParams.get('id');
+      if (!id) return jsonResponse({ error: "Missing ID" }, 400);
+      
+      try {
+        await env.DB.prepare("DELETE FROM transactions WHERE id=?").bind(id).run();
+        return jsonResponse({ success: true });
+      } catch (e) {
+        return jsonResponse({ error: "Delete failed", details: e.message }, 500);
+      }
+    }
+
     // 5. GET /api/transactions
     if (path === '/api/transactions' && request.method === 'GET') {
       const year = url.searchParams.get('year');
@@ -292,11 +324,22 @@ export async function onRequest(context) {
 
       let limits = {};
       
-      if (raw && raw.length > 50 && month) {
-        const monthIndex = parseInt(month, 10) - 1; // 0 to 11
-        const colIndex = 58 + monthIndex; // BG is index 58 (0-indexed A=0? Wait, A is 0, B is 1... BG is 58)
+      if (raw && raw.length > 50) {
+        const targetYear = year ? parseInt(year, 10) : new Date().getFullYear();
+        // 2026 starts at column BG (index 58)
+        // Each year takes 14 columns: 12 months + 1 yearly total + 1 gap
+        const startCol = 58 + (targetYear - 2026) * 14;
         
-        for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49
+        let colIndex;
+        if (month) {
+          const monthIndex = parseInt(month, 10) - 1; // 0 to 11
+          colIndex = startCol + monthIndex;
+        } else {
+          // Yearly budget is located right after the 12 months
+          colIndex = startCol + 12;
+        }
+        
+        for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49 (expense categories)
           const cat = raw[i][1]; // Column B is index 1
           if (cat) {
             limits[cat] = parseFloat(raw[i][colIndex]) || 0;
