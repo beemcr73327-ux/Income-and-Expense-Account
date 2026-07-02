@@ -381,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.dayFilterGroup.style.display = (state.chartView === 'day') ? 'flex' : 'none';
 
             loadSummary();
+            loadBudgetConfig();
         });
     });
 

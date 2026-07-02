@@ -342,7 +342,20 @@ export async function onRequest(context) {
         for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49 (expense categories)
           const cat = raw[i][1]; // Column B is index 1
           if (cat) {
-            limits[cat] = parseFloat(raw[i][colIndex]) || 0;
+            if (month) {
+              limits[cat] = parseFloat(raw[i][colIndex]) || 0;
+            } else {
+              // Yearly view: Sum all 12 months (startCol to startCol + 11) 
+              // plus fallback to BS column (startCol + 12) if it exists, though summing is safer
+              let yearlySum = 0;
+              for (let m = 0; m < 12; m++) {
+                 yearlySum += parseFloat(raw[i][startCol + m]) || 0;
+              }
+              // In case they manually put a larger yearly budget in BS, we could take max,
+              // but summing is what they requested ("รวมมาจากแต่ละรายการแต่ละเดือน")
+              const bsValue = parseFloat(raw[i][startCol + 12]) || 0;
+              limits[cat] = yearlySum > 0 ? yearlySum : bsValue;
+            }
           }
         }
       }
