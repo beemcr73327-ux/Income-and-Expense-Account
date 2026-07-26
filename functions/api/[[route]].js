@@ -88,6 +88,14 @@ export async function onRequest(context) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            content TEXT,
+            color TEXT DEFAULT '#fef08a',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
         return jsonResponse({ status: "success", message: "DB Initialized" });
       } catch (e) {
         return jsonResponse({ error: e.message, stack: e.stack }, 500);
@@ -116,6 +124,14 @@ export async function onRequest(context) {
           CREATE TABLE IF NOT EXISTS sync_data (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            content TEXT,
+            color TEXT DEFAULT '#fef08a',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
@@ -150,9 +166,36 @@ export async function onRequest(context) {
       
       if (data.status === 'success') {
         await env.DB.prepare("INSERT INTO sync_data (key, value, updated_at) VALUES ('raw_sheet', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(data.data)).run();
+        if (data.daily_ab) {
+          await env.DB.prepare("INSERT INTO sync_data (key, value, updated_at) VALUES ('daily_ab', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(data.daily_ab)).run();
+        }
         return jsonResponse({ success: true });
       }
       return jsonResponse({ error: "Failed to fetch from Google Sheets" }, 500);
+    }
+
+    // 2.5 GET & POST /api/notes
+    if (path === '/api/notes') {
+      if (request.method === 'GET') {
+        try {
+          const note = await env.DB.prepare("SELECT content, color FROM notes WHERE id = 1").first();
+          return jsonResponse(note || { content: "", color: "#fef08a" });
+        } catch (e) {
+          return jsonResponse({ content: "", color: "#fef08a" });
+        }
+      }
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { content, color } = body;
+          await env.DB.prepare(
+            "INSERT INTO notes (id, content, color, updated_at) VALUES (1, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET content=excluded.content, color=excluded.color, updated_at=CURRENT_TIMESTAMP"
+          ).bind(content || "", color || "#fef08a").run();
+          return jsonResponse({ success: true });
+        } catch (e) {
+          return jsonResponse({ error: "Failed to save note", details: e.message }, 500);
+        }
+      }
     }
 
     // 3. GET /api/categories
@@ -207,7 +250,7 @@ export async function onRequest(context) {
       return jsonResponse({ success: true, id: result.lastRowId });
     }
 
-    // 4.5 PUT /api/transaction (Update)
+    // 4.5 PUT /api/transaction (Update & Sync to Google Sheet)
     if (path === '/api/transaction' && request.method === 'PUT') {
       const body = await request.json();
       const { id, date, type, category, amount, note, saving_type, saving_group } = body;
@@ -217,9 +260,25 @@ export async function onRequest(context) {
       }
       
       try {
+        // Fetch old record to find and replace in Google Sheet
+        const oldRow = await env.DB.prepare("SELECT * FROM transactions WHERE id = ?").bind(id).first();
+        
         await env.DB.prepare(
           "UPDATE transactions SET date=?, type=?, category=?, amount=?, note=?, saving_type=?, saving_group=? WHERE id=?"
         ).bind(date, type, category, amount, note || "", saving_type || "", saving_group || "", id).run();
+
+        // Async sync edit to Google Sheet
+        if (oldRow) {
+          context.waitUntil(appendToGoogleSheet(env, {
+            action: 'updateRow',
+            old_date: oldRow.date,
+            old_type: oldRow.type,
+            old_category: oldRow.category,
+            old_amount: oldRow.amount,
+            date, type, category, amount, note, saving_type, saving_group
+          }));
+        }
+
         return jsonResponse({ success: true });
       } catch (e) {
         return jsonResponse({ error: "Update failed", details: e.message }, 500);
@@ -317,17 +376,35 @@ export async function onRequest(context) {
       const dateParam = url.searchParams.get('date');
       
       let raw = null;
+      let dailyAbData = null;
       try {
         const row = await env.DB.prepare("SELECT value FROM sync_data WHERE key = 'raw_sheet'").first();
         if (row) raw = JSON.parse(row.value);
+        
+        const abRow = await env.DB.prepare("SELECT value FROM sync_data WHERE key = 'daily_ab'").first();
+        if (abRow) dailyAbData = JSON.parse(abRow.value);
       } catch (e) {}
+
+      // Map DailyA/B rules: Category -> { mode: 'Day'|'Month'|'Year', status: 'On'|'Off' }
+      const dailyRules = {};
+      if (dailyAbData && Array.isArray(dailyAbData)) {
+        dailyAbData.forEach(row => {
+          if (row && row[0]) {
+            const catName = String(row[0]).trim();
+            const mode = row[1] ? String(row[1]).trim() : 'Day';
+            const status = row[2] ? String(row[2]).trim() : (row[3] ? String(row[3]).trim() : 'On');
+            dailyRules[catName] = {
+              mode: mode,
+              status: status.toLowerCase() === 'off' ? 'Off' : 'On'
+            };
+          }
+        });
+      }
 
       let limits = {};
       
       if (raw && raw.length > 50) {
         const targetYear = year ? parseInt(year, 10) : new Date().getFullYear();
-        // 2026 starts at column BG (index 58)
-        // Each year takes 14 columns: 12 months + 1 yearly total + 1 gap
         const startCol = 58 + (targetYear - 2026) * 14;
         
         const isDayView = !!dateParam;
@@ -338,29 +415,50 @@ export async function onRequest(context) {
           const monthIndex = activeMonth - 1; // 0 to 11
           colIndex = startCol + monthIndex;
         } else {
-          // Yearly budget is located right after the 12 months
           colIndex = startCol + 12;
         }
         
-        let divisor = 1;
-        if (isDayView && activeMonth) {
-          divisor = new Date(targetYear, activeMonth, 0).getDate();
+        let daysInMonth = 1;
+        if (activeMonth) {
+          daysInMonth = new Date(targetYear, activeMonth, 0).getDate();
         }
         
         for (let i = 32; i <= 49; i++) { // B33:B50 -> rows 32-49 (expense categories)
           const cat = raw[i][1]; // Column B is index 1
           if (cat) {
-            if (activeMonth) {
-              limits[cat] = Math.round((parseFloat(raw[i][colIndex]) || 0) / divisor);
+            const catRule = dailyRules[cat] || { mode: 'Day', status: 'On' };
+            
+            if (isDayView) {
+              // Daily View rules from DailyA/B
+              if (catRule.status === 'Off') {
+                // Skip category completely if Off
+                continue;
+              }
+              
+              const mBudget = parseFloat(raw[i][colIndex]) || 0;
+              const ruleMode = catRule.mode.toLowerCase();
+              
+              if (ruleMode === 'month') {
+                limits[cat] = Math.round(mBudget);
+              } else if (ruleMode === 'year') {
+                let yearlySum = 0;
+                for (let m = 0; m < 12; m++) {
+                  yearlySum += parseFloat(raw[i][startCol + m]) || 0;
+                }
+                limits[cat] = Math.round(yearlySum);
+              } else {
+                // 'day' mode (default): Monthly Budget / daysInMonth
+                limits[cat] = Math.round(mBudget / daysInMonth);
+              }
+            } else if (activeMonth) {
+              // Monthly View
+              limits[cat] = parseFloat(raw[i][colIndex]) || 0;
             } else {
-              // Yearly view: Sum all 12 months (startCol to startCol + 11) 
-              // plus fallback to BS column (startCol + 12) if it exists, though summing is safer
+              // Yearly View
               let yearlySum = 0;
               for (let m = 0; m < 12; m++) {
                  yearlySum += parseFloat(raw[i][startCol + m]) || 0;
               }
-              // In case they manually put a larger yearly budget in BS, we could take max,
-              // but summing is what they requested ("รวมมาจากแต่ละรายการแต่ละเดือน")
               const bsValue = parseFloat(raw[i][startCol + 12]) || 0;
               limits[cat] = yearlySum > 0 ? yearlySum : bsValue;
             }

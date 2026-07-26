@@ -351,19 +351,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (budget === 0 && actual === 0) return;
 
-            const pct = budget > 0 ? Math.min(Math.round((actual / budget) * 100), 100) : (actual > 0 ? 100 : 0);
+            const pct = budget > 0 ? Math.round((actual / budget) * 100) : (actual > 0 ? 100 : 0);
             let color = "#10b981"; // soft green
-            if (pct > 80) color = "#f59e0b"; // warm yellow
-            if (pct >= 100) color = "#f43f5e"; // soft red
+            let statusBadge = '';
+
+            if (actual > budget && budget > 0) {
+                color = "#f43f5e"; // soft red
+                const overAmount = actual - budget;
+                statusBadge = `<span class="badge-overbudget">เกินงบ ฿${overAmount.toLocaleString()} (${pct}%)</span>`;
+            } else {
+                if (pct > 80) color = "#f59e0b"; // warm yellow
+                const remaining = Math.max(0, budget - actual);
+                statusBadge = `<span class="badge-remaining">เหลือ ฿${remaining.toLocaleString()} (${pct}%)</span>`;
+            }
+
+            const fillWidth = Math.min(pct, 100);
 
             const itemHtml = `
                 <div class="budget-item">
-                    <div class="budget-info">
-                        <span class="budget-cat">${cat} (${pct}%)</span>
-                        <span class="budget-amounts">฿${actual.toLocaleString()} / ฿${budget.toLocaleString()}</span>
+                    <div class="budget-info" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="budget-cat">${cat}</span>
+                        ${statusBadge}
                     </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" style="width: ${pct}%; background-color: ${color};"></div>
+                    <div class="budget-info" style="margin-top: 4px; font-size: 0.8rem; color: #64748b;">
+                        <span>ใช้ไป ฿${actual.toLocaleString()}</span>
+                        <span>งบประมาณ ฿${budget.toLocaleString()}</span>
+                    </div>
+                    <div class="progress-bar-bg" style="margin-top: 6px;">
+                        <div class="progress-bar-fill" style="width: ${fillWidth}%; background-color: ${color};"></div>
                     </div>
                 </div>
             `;
@@ -380,8 +395,15 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.monthFilterGroup.style.display = (state.chartView === 'month') ? 'flex' : 'none';
             elements.dayFilterGroup.style.display = (state.chartView === 'day') ? 'flex' : 'none';
 
+            if (state.chartView === 'day' && elements.dayPicker) {
+                if (!elements.dayPicker.value) {
+                    elements.dayPicker.value = state.currentDay;
+                }
+            }
+
             loadSummary();
             loadBudgetConfig();
+            if (typeof loadTransactions === 'function') loadTransactions();
         });
     });
 
@@ -390,13 +412,17 @@ document.addEventListener('DOMContentLoaded', () => {
             state.currentMonth = parseInt(e.target.value);
             loadSummary();
             loadBudgetConfig();
+            if (typeof loadTransactions === 'function') loadTransactions();
         });
     }
 
     if (elements.dayPicker) {
+        elements.dayPicker.value = state.currentDay;
         elements.dayPicker.addEventListener('change', (e) => {
             state.currentDay = e.target.value;
             loadSummary();
+            loadBudgetConfig();
+            if (typeof loadTransactions === 'function') loadTransactions();
         });
     }
 
@@ -440,16 +466,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    if (elements.txForm) {
-        elements.txForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const saveBtn = document.getElementById('btn-save-tx');
-            saveBtn.disabled = true;
-            saveBtn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
-            lucide.createIcons();
+    // Form Submit Handler (with Confirm Modal for Edit)
+    let pendingTxPayload = null;
+    let pendingMethod = 'POST';
 
+    if (elements.txForm) {
+        elements.txForm.addEventListener('submit', (e) => {
+            e.preventDefault();
             const nameInput = document.getElementById('tx-name');
-            const payload = {
+            pendingTxPayload = {
                 type: state.txType,
                 date: elements.txDateInput.value,
                 category: nameInput ? nameInput.value : '',
@@ -459,37 +484,72 @@ document.addEventListener('DOMContentLoaded', () => {
                 saving_group: state.txType === 'เงินออม/ลงทุน' ? (elements.txSavingGroup ? elements.txSavingGroup.value : '') : ''
             };
 
-            let method = 'POST';
+            pendingMethod = 'POST';
             if (elements.txIdInput && elements.txIdInput.value) {
-                payload.id = elements.txIdInput.value;
-                method = 'PUT';
+                pendingTxPayload.id = elements.txIdInput.value;
+                pendingMethod = 'PUT';
+                // Show confirm modal for edit
+                const confirmModal = document.getElementById('confirm-modal');
+                if (confirmModal) confirmModal.style.display = 'flex';
+                return;
             }
 
-            try {
-                const res = await fetch('/api/transaction', {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
+            executeSaveTransaction();
+        });
+    }
 
-                if (data.success) {
-                    showToast(method === 'PUT' ? "✨ แก้ไขเรียบร้อยแล้ว!" : "✨ บันทึกเรียบร้อยแล้ว!");
-                    elements.txAmountInput.value = '';
-                    elements.txNoteInput.value = '';
-                    if (elements.txIdInput) elements.txIdInput.value = '';
-                    loadSummary();
-                    loadBudgetConfig();
-                } else {
-                    showToast("❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถบันทึกได้"));
-                }
-            } catch (err) {
-                showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = `<i data-lucide="save"></i> บันทึกข้อมูลลง Google Sheets`;
-                lucide.createIcons();
+    async function executeSaveTransaction() {
+        if (!pendingTxPayload) return;
+        const saveBtn = document.getElementById('btn-save-tx');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
+        lucide.createIcons();
+
+        try {
+            const res = await fetch('/api/transaction', {
+                method: pendingMethod,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingTxPayload)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(pendingMethod === 'PUT' ? "✨ แก้ไขเรียบร้อยแล้ว!" : "✨ บันทึกเรียบร้อยแล้ว!");
+                elements.txAmountInput.value = '';
+                elements.txNoteInput.value = '';
+                if (elements.txIdInput) elements.txIdInput.value = '';
+                loadSummary();
+                loadBudgetConfig();
+                if (typeof loadTransactions === 'function') loadTransactions();
+            } else {
+                showToast("❌ เกิดข้อผิดพลาด: " + (data.error || "ไม่สามารถบันทึกได้"));
             }
+        } catch (err) {
+            showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i data-lucide="save"></i> บันทึกข้อมูลลง Google Sheets`;
+            lucide.createIcons();
+            pendingTxPayload = null;
+        }
+    }
+
+    // Modal Action Buttons
+    const btnModalCancel = document.getElementById('btn-modal-cancel');
+    const btnModalConfirm = document.getElementById('btn-modal-confirm');
+    const confirmModal = document.getElementById('confirm-modal');
+
+    if (btnModalCancel) {
+        btnModalCancel.addEventListener('click', () => {
+            if (confirmModal) confirmModal.style.display = 'none';
+            pendingTxPayload = null;
+        });
+    }
+
+    if (btnModalConfirm) {
+        btnModalConfirm.addEventListener('click', () => {
+            if (confirmModal) confirmModal.style.display = 'none';
+            executeSaveTransaction();
         });
     }
 
@@ -620,11 +680,119 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Sticky Note Management
+    const noteTextarea = document.getElementById('note-textarea');
+    const noteContainer = document.getElementById('sticky-note-container');
+    const noteStatus = document.getElementById('note-save-status');
+    const colorDots = document.querySelectorAll('.color-dot');
+    let noteSaveTimeout = null;
+
+    async function loadNote() {
+        if (!noteTextarea) return;
+        try {
+            const res = await fetch('/api/notes');
+            const data = await res.json();
+            if (data) {
+                noteTextarea.value = data.content || '';
+                if (data.color && noteContainer) {
+                    noteContainer.style.backgroundColor = data.color;
+                    colorDots.forEach(dot => {
+                        dot.classList.toggle('active', dot.getAttribute('data-color') === data.color);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load note:", e);
+        }
+    }
+
+    async function saveNote() {
+        if (!noteTextarea || !noteContainer) return;
+        const currentColor = noteContainer.style.backgroundColor || '#fef08a';
+        const content = noteTextarea.value;
+
+        if (noteStatus) {
+            noteStatus.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
+            lucide.createIcons();
+        }
+
+        try {
+            await fetch('/api/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, color: currentColor })
+            });
+            if (noteStatus) {
+                noteStatus.innerHTML = `<i data-lucide="check-circle-2"></i> บันทึกแล้ว`;
+                lucide.createIcons();
+            }
+        } catch (e) {
+            if (noteStatus) {
+                noteStatus.innerHTML = `<i data-lucide="alert-circle"></i> บันทึกไม่สำเร็จ`;
+                lucide.createIcons();
+            }
+        }
+    }
+
+    if (noteTextarea) {
+        noteTextarea.addEventListener('input', () => {
+            if (noteSaveTimeout) clearTimeout(noteSaveTimeout);
+            if (noteStatus) {
+                noteStatus.innerHTML = `<i data-lucide="edit-3"></i> กำลังพิมพ์...`;
+                lucide.createIcons();
+            }
+            noteSaveTimeout = setTimeout(saveNote, 800);
+        });
+    }
+
+    colorDots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            colorDots.forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+            const color = dot.getAttribute('data-color');
+            if (noteContainer) {
+                noteContainer.style.backgroundColor = color;
+                saveNote();
+            }
+        });
+    });
+
+    // Settings Modal & Push Switch Handlers
+    const settingsModal = document.getElementById('settings-modal');
+    const btnOpenSettings = document.getElementById('btn-open-settings');
+    const navBtnSettings = document.getElementById('nav-btn-settings');
+    const btnCloseSettings = document.getElementById('btn-close-settings');
+    const btnSyncNow = document.getElementById('btn-sync-now');
+
+    function openSettings() {
+        if (settingsModal) settingsModal.style.display = 'flex';
+    }
+
+    function closeSettings() {
+        if (settingsModal) settingsModal.style.display = 'none';
+    }
+
+    if (btnOpenSettings) btnOpenSettings.addEventListener('click', openSettings);
+    if (navBtnSettings) navBtnSettings.addEventListener('click', openSettings);
+    if (btnCloseSettings) btnCloseSettings.addEventListener('click', closeSettings);
+
+    if (btnSyncNow) {
+        btnSyncNow.addEventListener('click', () => {
+            closeSettings();
+            const syncBtn = document.getElementById('btn-sync');
+            if (syncBtn) syncBtn.click();
+        });
+    }
+
     // Initialize Application
     if (elements.monthSelect) {
         elements.monthSelect.value = state.currentMonth;
     }
+    if (elements.dayPicker) {
+        elements.dayPicker.value = state.currentDay;
+    }
     checkConfig();
+    loadNote();
     loadCategories().then(() => {
         // Trigger initial type mapping
         const activeTab = document.querySelector('.type-tab.active');

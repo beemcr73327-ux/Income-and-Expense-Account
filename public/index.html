@@ -13,6 +13,10 @@
     <!-- FontAwesome / Lucide icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/styles.css">
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="icon" type="image/png" href="/icon.png">
 </head>
 <body>
     <div class="app-container">
@@ -26,9 +30,12 @@
                     <h1 class="text-xl font-bold" style="color: var(--primary); margin: 0; line-height: 1.2;">Finance Tracker</h1>
                 </div>
             </div>
-            <div class="header-right">
-                <button id="btn-sync" class="btn btn-icon" title="Sync Sheet" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; cursor: pointer; transition: all 0.3s ease;">
+            <div class="header-right" style="display: flex; gap: 10px; align-items: center;">
+                <button id="btn-sync" class="btn btn-icon btn-sync-sleek" title="Sync Sheet">
                     <i data-lucide="refresh-cw"></i>
+                </button>
+                <button id="btn-open-settings" class="btn btn-icon btn-settings-sleek" title="ตั้งค่า">
+                    <i data-lucide="settings"></i>
                 </button>
             </div>
         </header>
@@ -67,6 +74,29 @@
                             <span class="kpi-label">คงเหลือ (รายรับ-รายจ่าย)</span>
                             <h3 class="kpi-value" id="kpi-balance">฿0</h3>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Sticky Note Card -->
+                <div class="sticky-note-card" id="sticky-note-container" style="background-color: #fef08a;">
+                    <div class="sticky-note-header">
+                        <div class="sticky-note-title">
+                            <i data-lucide="sticky-note"></i>
+                            <span>โน๊ตบันทึกช่วยจำ (Quick Note)</span>
+                        </div>
+                        <div class="sticky-note-colors">
+                            <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
+                            <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
+                            <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
+                            <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
+                            <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
+                        </div>
+                    </div>
+                    <div class="sticky-note-body">
+                        <textarea id="note-textarea" placeholder="พิมพ์ข้อความช่วยจำที่นี่... (ระบบบันทึกอัตโนมัติ)"></textarea>
+                    </div>
+                    <div class="sticky-note-footer">
+                        <span id="note-save-status"><i data-lucide="check-circle-2"></i> บันทึกแล้ว</span>
                     </div>
                 </div>
 
@@ -257,7 +287,56 @@
                 <i data-lucide="list"></i>
                 <span>รายการ</span>
             </button>
+            <button class="nav-item" id="nav-btn-settings">
+                <i data-lucide="settings"></i>
+                <span>ตั้งค่า</span>
+            </button>
         </nav>
+    </div>
+
+    <!-- Confirm Edit Modal -->
+    <div id="confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-icon"><i data-lucide="alert-circle"></i></div>
+                <h3>ยืนยันการแก้ไขข้อมูล</h3>
+            </div>
+            <div class="modal-body">
+                <p>คุณต้องการยืนยันการแก้ไขรายการนี้ในระบบ และอัปเดตข้อมูลบน Google Sheet ด้วยใช่หรือไม่?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-modal-cancel">ยกเลิก</button>
+                <button type="button" class="btn btn-primary" id="btn-modal-confirm">ยืนยันแก้ไข</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i data-lucide="settings"></i></div>
+                <h3>การตั้งค่าระบบ</h3>
+                <button id="btn-close-settings" class="btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="padding-top: 10px;">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-title">เปิดใช้งานการซิงค์ข้อมูล</span>
+                        <span class="setting-desc">เชื่อมต่อข้อมูลกับ Google Sheets อัตโนมัติ</span>
+                    </div>
+                    <label class="push-switch">
+                        <input type="checkbox" id="sync-push-switch" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item" style="border: none; padding-top: 15px;">
+                    <button id="btn-sync-now" class="btn btn-primary btn-block">
+                        <i data-lucide="refresh-cw"></i> ซิงค์ข้อมูลกับ Google Sheet ตอนนี้
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Toast Notification -->
