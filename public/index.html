@@ -21,12 +21,12 @@
 <body>
     <div class="app-container">
         <!-- Top Header (Centered Minimalist Style) -->
-        <header class="app-header" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; text-align: center; padding: 14px 20px;">
-            <div class="header-center" style="display: flex; align-items: center; gap: 12px;">
-                <div class="app-logo" style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 8px 20px -4px rgba(168, 85, 247, 0.4);">
-                    <i data-lucide="wallet" style="width: 22px; height: 22px;"></i>
+        <header class="app-header" style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px; text-align: center; padding: 10px 16px;">
+            <div class="header-center" style="display: flex; align-items: center; gap: 10px;">
+                <div class="app-logo" style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 6px 16px -4px rgba(168, 85, 247, 0.4);">
+                    <i data-lucide="wallet" style="width: 20px; height: 20px;"></i>
                 </div>
-                <h1 class="text-xl font-bold" style="color: #0f172a; margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.3px;">Finance Tracker</h1>
+                <h1 class="text-xl font-bold" style="color: #0f172a; margin: 0; font-size: 1.18rem; font-weight: 700; letter-spacing: -0.3px;">Finance Tracker</h1>
             </div>
         </header>
 
@@ -74,21 +74,27 @@
                             <i data-lucide="sticky-note"></i>
                             <span>โน๊ตบันทึกช่วยจำ (Quick Note)</span>
                         </div>
-                        <!-- Background Color Dots (includes White #ffffff) -->
-                        <div class="sticky-note-colors">
-                            <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
-                            <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
-                            <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
-                            <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
-                            <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
-                            <button class="color-dot" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="สีขาว"></button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Pen Icon Button for Text Highlight -->
+                            <button id="btn-note-pen" class="btn-pen-icon" title="เลือกสีข้อความ/ไฮไลต์">
+                                <i data-lucide="pen-tool" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            <!-- Background Color Dots (includes White #ffffff) -->
+                            <div class="sticky-note-colors">
+                                <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
+                                <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
+                                <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
+                                <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
+                                <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
+                                <button class="color-dot" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="สีขาว"></button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Text Color / Highlight Toolbar -->
-                    <div class="sticky-text-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.78rem; color: #64748b;">
-                        <span><i data-lucide="palette" style="width: 14px; height: 14px;"></i> สีตัวอักษร:</span>
-                        <div class="text-color-dots" style="display: flex; gap: 6px;">
+                    <!-- Slide-out Pen Palette Toolbar (Collapsed by Default) -->
+                    <div id="sticky-pen-palette" class="sticky-pen-palette collapsed">
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 500;">ไฮไลต์สีข้อความที่คลุม:</span>
+                        <div class="text-color-dots">
                             <button class="text-color-dot active" data-textcolor="#1e293b" style="background: #1e293b;" title="ดำ"></button>
                             <button class="text-color-dot" data-textcolor="#ef4444" style="background: #ef4444;" title="แดง"></button>
                             <button class="text-color-dot" data-textcolor="#3b82f6" style="background: #3b82f6;" title="น้ำเงิน"></button>
@@ -99,7 +105,7 @@
                     </div>
 
                     <div class="sticky-note-body">
-                        <textarea id="note-textarea" style="color: #1e293b;" placeholder="พิมพ์ข้อความช่วยจำที่นี่... (ระบบบันทึกอัตโนมัติ)"></textarea>
+                        <div id="note-editor" contenteditable="true" class="note-editor" data-placeholder="พิมพ์ข้อความช่วยจำที่นี่... (เอานิ้ว/เมาส์ลากคลุมคำแล้วกดเลือกสีปากกาเพื่อไฮไลต์เฉพาะจุด)"></div>
                     </div>
                     <div class="sticky-note-footer">
                         <span id="note-save-status"><i data-lucide="check-circle-2"></i> บันทึกแล้ว</span>
@@ -276,6 +282,8 @@
                         <!-- Transaction rows injected by JS -->
                     </div>
                 </div>
+            </section>
+
             <!-- PAGE 4: DEDICATED SETTINGS PAGE -->
             <section id="page-settings" class="page-view">
                 <div class="glass-card">

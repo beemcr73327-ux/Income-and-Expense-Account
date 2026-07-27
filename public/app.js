@@ -676,31 +676,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Sticky Note Management
-    const noteTextarea = document.getElementById('note-textarea');
+    // Sticky Note Management (Rich-Text & Pen Slide-out Palette)
+    const noteEditor = document.getElementById('note-editor');
     const noteContainer = document.getElementById('sticky-note-container');
     const noteStatus = document.getElementById('note-save-status');
+    const btnNotePen = document.getElementById('btn-note-pen');
+    const penPalette = document.getElementById('sticky-pen-palette');
     const colorDots = document.querySelectorAll('.color-dot');
     const textColorDots = document.querySelectorAll('.text-color-dot');
     let noteSaveTimeout = null;
 
+    // Toggle Pen Slide-out Palette
+    if (btnNotePen && penPalette) {
+        btnNotePen.addEventListener('click', (e) => {
+            e.stopPropagation();
+            penPalette.classList.toggle('collapsed');
+            btnNotePen.classList.toggle('active', !penPalette.classList.contains('collapsed'));
+        });
+    }
+
     async function loadNote() {
-        if (!noteTextarea) return;
+        if (!noteEditor) return;
         try {
             const res = await fetch('/api/notes');
             const data = await res.json();
             if (data) {
-                noteTextarea.value = data.content || '';
+                noteEditor.innerHTML = data.content || '';
                 if (data.color && noteContainer) {
                     noteContainer.style.backgroundColor = data.color;
                     colorDots.forEach(dot => {
                         dot.classList.toggle('active', dot.getAttribute('data-color') === data.color);
-                    });
-                }
-                if (data.text_color && noteTextarea) {
-                    noteTextarea.style.color = data.text_color;
-                    textColorDots.forEach(dot => {
-                        dot.classList.toggle('active', dot.getAttribute('data-textcolor') === data.text_color);
                     });
                 }
             }
@@ -710,10 +715,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveNote() {
-        if (!noteTextarea || !noteContainer) return;
+        if (!noteEditor || !noteContainer) return;
         const currentColor = noteContainer.style.backgroundColor || '#fef08a';
-        const currentTextColor = noteTextarea.style.color || '#1e293b';
-        const content = noteTextarea.value;
+        const content = noteEditor.innerHTML;
 
         if (noteStatus) {
             noteStatus.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังบันทึก...`;
@@ -724,7 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, color: currentColor, text_color: currentTextColor })
+                body: JSON.stringify({ content, color: currentColor })
             });
             if (noteStatus) {
                 noteStatus.innerHTML = `<i data-lucide="check-circle-2"></i> บันทึกแล้ว`;
@@ -738,8 +742,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (noteTextarea) {
-        noteTextarea.addEventListener('input', () => {
+    if (noteEditor) {
+        noteEditor.addEventListener('input', () => {
             if (noteSaveTimeout) clearTimeout(noteSaveTimeout);
             if (noteStatus) {
                 noteStatus.innerHTML = `<i data-lucide="edit-3"></i> กำลังพิมพ์...`;
@@ -749,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Change background color
     colorDots.forEach(dot => {
         dot.addEventListener('click', () => {
             colorDots.forEach(d => d.classList.remove('active'));
@@ -761,14 +766,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Apply text color to selected text
     textColorDots.forEach(dot => {
         dot.addEventListener('click', () => {
-            textColorDots.forEach(d => d.classList.remove('active'));
-            dot.classList.add('active');
             const textColor = dot.getAttribute('data-textcolor');
-            if (noteTextarea) {
-                noteTextarea.style.color = textColor;
+            if (noteEditor) {
+                noteEditor.focus();
+                document.execCommand('foreColor', false, textColor);
                 saveNote();
+            }
+            // Auto collapse palette after selecting color
+            if (penPalette) {
+                penPalette.classList.add('collapsed');
+                if (btnNotePen) btnNotePen.classList.remove('active');
             }
         });
     });

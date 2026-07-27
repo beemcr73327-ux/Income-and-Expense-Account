@@ -279,18 +279,22 @@ body {
 /* Chart Container */
 .chart-container {
     position: relative;
+    height: 250px;
     width: 100%;
-    height: 230px;
-    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.chart-center-text {
+.chart-center-label {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -75%);
+    transform: translate(-50%, -50%);
     text-align: center;
     pointer-events: none;
+    z-index: 10;
+    width: 100%;
 }
 
 .center-label {
@@ -690,6 +694,47 @@ body {
     color: #334155;
 }
 
+.btn-pen-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.6);
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-pen-icon:hover, .btn-pen-icon.active {
+    background: #0f172a;
+    color: white;
+}
+
+.sticky-pen-palette {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 6px 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+    max-height: 50px;
+    opacity: 1;
+}
+
+.sticky-pen-palette.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    padding: 0 12px;
+    pointer-events: none;
+    overflow: hidden;
+}
+
 .sticky-note-colors {
     display: flex;
     gap: 6px;
@@ -713,6 +758,11 @@ body {
     transform: scale(1.15);
 }
 
+.text-color-dots {
+    display: flex;
+    gap: 6px;
+}
+
 .text-color-dot {
     width: 18px;
     height: 18px;
@@ -731,17 +781,24 @@ body {
     transform: scale(1.15);
 }
 
-.sticky-note-body textarea {
+.note-editor {
     width: 100%;
     min-height: 80px;
     background: transparent;
     border: none;
     outline: none;
-    resize: vertical;
     font-size: 0.92rem;
     line-height: 1.6;
     color: #1e293b;
     font-weight: 500;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.note-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
 }
 
 .sticky-note-footer {
