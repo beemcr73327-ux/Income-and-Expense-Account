@@ -23,6 +23,42 @@ document.addEventListener('DOMContentLoaded', () => {
         incomeChartInstance: null
     };
 
+    // Custom Chart.js Plugin to draw center label directly inside doughnut ring's center
+    const centerTextPlugin = {
+        id: 'centerTextPlugin',
+        afterDraw(chart) {
+            if (!chart.config.options.plugins.centerText) return;
+            const { label, value, color } = chart.config.options.plugins.centerText;
+            if (!label && !value) return;
+
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            if (meta && meta.data && meta.data[0]) {
+                const x = meta.data[0].x;
+                const y = meta.data[0].y;
+
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Subtitle Label (e.g. "รวมรายจ่าย" or "รวมรายรับ")
+                ctx.font = '500 12px Prompt, Kanit, sans-serif';
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(label || '', x, y - 10);
+
+                // Value Text (e.g. "฿9,563")
+                ctx.font = '700 18px Prompt, Kanit, sans-serif';
+                ctx.fillStyle = color || '#0f172a';
+                ctx.fillText(value || '', x, y + 12);
+
+                ctx.restore();
+            }
+        }
+    };
+    if (window.Chart) {
+        Chart.register(centerTextPlugin);
+    }
+
     const CATEGORY_COLORS = {
         "อาหาร": "#f43f5e",
         "ของใช้ส่วนตัว": "#ec4899",
@@ -254,10 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (expenseCard) expenseCard.style.display = 'block';
             const colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
 
-            if (elements.chartTotalVal) {
-                elements.chartTotalVal.textContent = formatTHB(totalExpense);
-            }
-
             if (expenseChartCanvas) {
                 const ctx = expenseChartCanvas.getContext('2d');
                 if (state.chartInstance) state.chartInstance.destroy();
@@ -271,6 +303,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     options: {
                         responsive: true, maintainAspectRatio: false, cutout: '75%',
                         plugins: {
+                            centerText: {
+                                label: "รวมรายจ่าย",
+                                value: formatTHB(totalExpense),
+                                color: "#0f172a"
+                            },
                             legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
                             tooltip: { callbacks: { label: function(context) {
                                 const val = context.raw;
@@ -302,11 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (incomeCard) incomeCard.style.display = 'block';
                 const incColors = incLabels.map(l => CATEGORY_COLORS[l] || "#3b82f6");
 
-                const chartIncomeVal = document.getElementById('chart-income-val');
-                if (chartIncomeVal) {
-                    chartIncomeVal.textContent = formatTHB(totalIncome);
-                }
-
                 if (incomeChartCanvas) {
                     const ctxInc = incomeChartCanvas.getContext('2d');
                     if (state.incomeChartInstance) state.incomeChartInstance.destroy();
@@ -320,6 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         options: {
                             responsive: true, maintainAspectRatio: false, cutout: '75%',
                             plugins: {
+                                centerText: {
+                                    label: "รวมรายรับ",
+                                    value: formatTHB(totalIncome),
+                                    color: "#10b981"
+                                },
                                 legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
                                 tooltip: { callbacks: { label: function(context) {
                                     const val = context.raw;
@@ -792,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
 
             try {
-                const res = await fetch('/api/sync');
+                const res = await fetch('/api/sync', { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
                     showToast("✨ ซิงค์ข้อมูลกับ Google Sheet สำเร็จ!");

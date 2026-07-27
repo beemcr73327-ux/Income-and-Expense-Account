@@ -158,8 +158,8 @@ export async function onRequest(context) {
       }
     }
 
-    // 2. POST /api/sync
-    if (path === '/api/sync' && request.method === 'POST') {
+    // 2. GET & POST /api/sync
+    if (path === '/api/sync' && (request.method === 'GET' || request.method === 'POST')) {
       const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
       if (!appsScriptUrl) return jsonResponse({ error: "No Apps Script URL" }, 400);
       
@@ -287,13 +287,26 @@ export async function onRequest(context) {
       }
     }
 
-    // 4.6 DELETE /api/transaction (Delete)
+    // 4.6 DELETE /api/transaction (Delete & Sync to Google Sheet)
     if (path === '/api/transaction' && request.method === 'DELETE') {
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: "Missing ID" }, 400);
       
       try {
+        const oldRow = await env.DB.prepare("SELECT * FROM transactions WHERE id = ?").bind(id).first();
         await env.DB.prepare("DELETE FROM transactions WHERE id=?").bind(id).run();
+
+        // Async sync deletion to Google Sheet
+        if (oldRow) {
+          context.waitUntil(appendToGoogleSheet(env, {
+            action: 'deleteRow',
+            date: oldRow.date,
+            type: oldRow.type,
+            category: oldRow.category,
+            amount: oldRow.amount
+          }));
+        }
+
         return jsonResponse({ success: true });
       } catch (e) {
         return jsonResponse({ error: "Delete failed", details: e.message }, 500);
