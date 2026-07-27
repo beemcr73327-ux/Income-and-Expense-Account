@@ -93,6 +93,7 @@ export async function onRequest(context) {
             id INTEGER PRIMARY KEY DEFAULT 1,
             content TEXT,
             color TEXT DEFAULT '#fef08a',
+            text_color TEXT DEFAULT '#1e293b',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
@@ -132,6 +133,7 @@ export async function onRequest(context) {
             id INTEGER PRIMARY KEY DEFAULT 1,
             content TEXT,
             color TEXT DEFAULT '#fef08a',
+            text_color TEXT DEFAULT '#1e293b',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
@@ -178,19 +180,19 @@ export async function onRequest(context) {
     if (path === '/api/notes') {
       if (request.method === 'GET') {
         try {
-          const note = await env.DB.prepare("SELECT content, color FROM notes WHERE id = 1").first();
-          return jsonResponse(note || { content: "", color: "#fef08a" });
+          const note = await env.DB.prepare("SELECT content, color, text_color FROM notes WHERE id = 1").first();
+          return jsonResponse(note || { content: "", color: "#fef08a", text_color: "#1e293b" });
         } catch (e) {
-          return jsonResponse({ content: "", color: "#fef08a" });
+          return jsonResponse({ content: "", color: "#fef08a", text_color: "#1e293b" });
         }
       }
       if (request.method === 'POST') {
         try {
           const body = await request.json();
-          const { content, color } = body;
+          const { content, color, text_color } = body;
           await env.DB.prepare(
-            "INSERT INTO notes (id, content, color, updated_at) VALUES (1, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET content=excluded.content, color=excluded.color, updated_at=CURRENT_TIMESTAMP"
-          ).bind(content || "", color || "#fef08a").run();
+            "INSERT INTO notes (id, content, color, text_color, updated_at) VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET content=excluded.content, color=excluded.color, text_color=excluded.text_color, updated_at=CURRENT_TIMESTAMP"
+          ).bind(content || "", color || "#fef08a", text_color || "#1e293b").run();
           return jsonResponse({ success: true });
         } catch (e) {
           return jsonResponse({ error: "Failed to save note", details: e.message }, 500);
@@ -466,35 +468,59 @@ export async function onRequest(context) {
         }
       }
 
-      // Fetch current usage for expenses
-      let query = "SELECT category, SUM(amount) as used FROM transactions WHERE type IN ('expense', 'รายจ่าย')";
-      let params = [];
-      
+      // Fetch usages for each category according to its mode (Day / Month / Year)
+      const isDayView = !!dateParam;
+      const targetYearInt = year ? parseInt(year, 10) : (dateParam ? parseInt(dateParam.split('-')[0], 10) : new Date().getFullYear());
+      const activeMonthInt = month ? parseInt(month, 10) : (dateParam ? parseInt(dateParam.split('-')[1], 10) : null);
+      const paddedMonthStr = activeMonthInt ? String(activeMonthInt).padStart(2, '0') : '';
+
+      let dayUsageMap = {};
       if (dateParam) {
-        query += " AND date = ?";
-        params.push(dateParam);
-      } else if (year && month) {
-        const paddedMonth = month.padStart(2, '0');
-        query += " AND date LIKE ?";
-        params.push(`${year}-${paddedMonth}-%`);
-      } else if (year) {
-        query += " AND date LIKE ?";
-        params.push(`${year}-%`);
+        const { results } = await env.DB.prepare(
+          "SELECT category, SUM(amount) as used FROM transactions WHERE type IN ('expense', 'รายจ่าย') AND date = ? GROUP BY category"
+        ).bind(dateParam).all();
+        (results || []).forEach(r => dayUsageMap[r.category] = r.used);
       }
-      
-      query += " GROUP BY category";
-      const { results } = await env.DB.prepare(query).bind(...params).all();
-      
-      const usage = {};
-      results.forEach(row => {
-        usage[row.category] = row.used;
+
+      let monthUsageMap = {};
+      if (activeMonthInt) {
+        const { results } = await env.DB.prepare(
+          "SELECT category, SUM(amount) as used FROM transactions WHERE type IN ('expense', 'รายจ่าย') AND date LIKE ? GROUP BY category"
+        ).bind(`${targetYearInt}-${paddedMonthStr}-%`).all();
+        (results || []).forEach(r => monthUsageMap[r.category] = r.used);
+      }
+
+      let yearUsageMap = {};
+      const { results: yResults } = await env.DB.prepare(
+        "SELECT category, SUM(amount) as used FROM transactions WHERE type IN ('expense', 'รายจ่าย') AND date LIKE ? GROUP BY category"
+      ).bind(`${targetYearInt}-%`).all();
+      (yResults || []).forEach(r => yearUsageMap[r.category] = r.used);
+
+      const budgetResult = Object.keys(limits).map(category => {
+        const catRule = dailyRules[category] || { mode: 'Day', status: 'On' };
+        let categoryUsed = 0;
+
+        if (isDayView) {
+          const mode = catRule.mode.toLowerCase();
+          if (mode === 'month') {
+            categoryUsed = monthUsageMap[category] || 0;
+          } else if (mode === 'year') {
+            categoryUsed = yearUsageMap[category] || 0;
+          } else {
+            categoryUsed = dayUsageMap[category] || 0;
+          }
+        } else if (activeMonthInt) {
+          categoryUsed = monthUsageMap[category] || 0;
+        } else {
+          categoryUsed = yearUsageMap[category] || 0;
+        }
+
+        return {
+          category,
+          limit: limits[category],
+          used: categoryUsed
+        };
       });
-      
-      const budgetResult = Object.keys(limits).map(category => ({
-        category,
-        limit: limits[category],
-        used: usage[category] || 0
-      }));
       
       return jsonResponse(budgetResult);
     }

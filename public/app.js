@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentYear: new Date().getFullYear(),
         currentMonth: new Date().getMonth() + 1,
         currentDay: new Date().toISOString().split('T')[0],
-        chartView: 'year',
+        chartView: 'day',
         txType: 'รายจ่าย', // Default changed to match DB types
         historyFilter: 'all',
         summaryData: null,
@@ -236,29 +236,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderChart() {
         if (!state.summaryData) return;
         
+        const expenseChartCanvas = document.getElementById('expenseChart');
+        const expenseCard = expenseChartCanvas ? expenseChartCanvas.closest('.chart-card') : null;
+
+        const incomeChartCanvas = document.getElementById('incomeChart');
+        const incomeCard = incomeChartCanvas ? incomeChartCanvas.closest('.chart-card') : null;
+
         // --- 1. Expense Chart ---
-        if (state.budgetConfig && state.budgetConfig.length > 0) {
-            const usedItems = state.budgetConfig.filter(i => i.used > 0);
-            let labels = usedItems.map(i => i.category);
-            let values = usedItems.map(i => i.used);
-            let colors = [];
+        const totalExpense = state.summaryData["รายจ่าย"] || 0;
+        const usedItems = state.budgetConfig ? state.budgetConfig.filter(i => i.used > 0) : [];
+        let labels = usedItems.map(i => i.category);
+        let values = usedItems.map(i => i.used);
 
-            if (labels.length === 0) {
-                labels = ["ยังไม่มีรายการ"];
-                values = [1];
-                colors = ["#e2e8f0"];
-            } else {
-                colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
-            }
+        if (totalExpense === 0 || usedItems.length === 0) {
+            if (expenseCard) expenseCard.style.display = 'none';
+        } else {
+            if (expenseCard) expenseCard.style.display = 'block';
+            const colors = labels.map(l => CATEGORY_COLORS[l] || "#94a3b8");
 
-            const totalExpense = state.summaryData["รายจ่าย"] || 0;
             if (elements.chartTotalVal) {
-                elements.chartTotalVal.textContent = labels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalExpense);
+                elements.chartTotalVal.textContent = formatTHB(totalExpense);
             }
 
-            const ctxElem = document.getElementById('expenseChart');
-            if (ctxElem) {
-                const ctx = ctxElem.getContext('2d');
+            if (expenseChartCanvas) {
+                const ctx = expenseChartCanvas.getContext('2d');
                 if (state.chartInstance) state.chartInstance.destroy();
 
                 state.chartInstance = new Chart(ctx, {
@@ -272,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         plugins: {
                             legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
                             tooltip: { callbacks: { label: function(context) {
-                                if (context.label === "ยังไม่มีรายการ") return " ไม่มีข้อมูล";
                                 const val = context.raw;
                                 const pct = totalExpense > 0 ? ((val / totalExpense) * 100).toFixed(1) : 0;
                                 return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
@@ -295,45 +295,41 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let incLabels = Object.keys(grouped);
             let incValues = Object.values(grouped);
-            let incColors = [];
 
-            if (incLabels.length === 0) {
-                incLabels = ["ยังไม่มีรายการ"];
-                incValues = [1];
-                incColors = ["#e2e8f0"];
+            if (totalIncome === 0 || incLabels.length === 0) {
+                if (incomeCard) incomeCard.style.display = 'none';
             } else {
-                incColors = incLabels.map(l => CATEGORY_COLORS[l] || "#3b82f6");
-            }
+                if (incomeCard) incomeCard.style.display = 'block';
+                const incColors = incLabels.map(l => CATEGORY_COLORS[l] || "#3b82f6");
 
-            const chartIncomeVal = document.getElementById('chart-income-val');
-            if (chartIncomeVal) {
-                chartIncomeVal.textContent = incLabels[0] === "ยังไม่มีรายการ" ? "฿0" : formatTHB(totalIncome);
-            }
+                const chartIncomeVal = document.getElementById('chart-income-val');
+                if (chartIncomeVal) {
+                    chartIncomeVal.textContent = formatTHB(totalIncome);
+                }
 
-            const ctxIncElem = document.getElementById('incomeChart');
-            if (ctxIncElem) {
-                const ctxInc = ctxIncElem.getContext('2d');
-                if (state.incomeChartInstance) state.incomeChartInstance.destroy();
+                if (incomeChartCanvas) {
+                    const ctxInc = incomeChartCanvas.getContext('2d');
+                    if (state.incomeChartInstance) state.incomeChartInstance.destroy();
 
-                state.incomeChartInstance = new Chart(ctxInc, {
-                    type: 'doughnut',
-                    data: {
-                        labels: incLabels,
-                        datasets: [{ data: incValues, backgroundColor: incColors, borderWidth: 3, borderColor: '#ffffff' }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false, cutout: '75%',
-                        plugins: {
-                            legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
-                            tooltip: { callbacks: { label: function(context) {
-                                if (context.label === "ยังไม่มีรายการ") return " ไม่มีข้อมูล";
-                                const val = context.raw;
-                                const pct = totalIncome > 0 ? ((val / totalIncome) * 100).toFixed(1) : 0;
-                                return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
-                            }}}
+                    state.incomeChartInstance = new Chart(ctxInc, {
+                        type: 'doughnut',
+                        data: {
+                            labels: incLabels,
+                            datasets: [{ data: incValues, backgroundColor: incColors, borderWidth: 3, borderColor: '#ffffff' }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false, cutout: '75%',
+                            plugins: {
+                                legend: { position: 'bottom', labels: { color: '#475569', font: { family: 'Prompt', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle' } },
+                                tooltip: { callbacks: { label: function(context) {
+                                    const val = context.raw;
+                                    const pct = totalIncome > 0 ? ((val / totalIncome) * 100).toFixed(1) : 0;
+                                    return ` ${context.label}: ฿${val.toLocaleString()} (${pct}%)`;
+                                }}}
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
     }
@@ -685,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noteContainer = document.getElementById('sticky-note-container');
     const noteStatus = document.getElementById('note-save-status');
     const colorDots = document.querySelectorAll('.color-dot');
+    const textColorDots = document.querySelectorAll('.text-color-dot');
     let noteSaveTimeout = null;
 
     async function loadNote() {
@@ -700,6 +697,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         dot.classList.toggle('active', dot.getAttribute('data-color') === data.color);
                     });
                 }
+                if (data.text_color && noteTextarea) {
+                    noteTextarea.style.color = data.text_color;
+                    textColorDots.forEach(dot => {
+                        dot.classList.toggle('active', dot.getAttribute('data-textcolor') === data.text_color);
+                    });
+                }
             }
         } catch (e) {
             console.error("Failed to load note:", e);
@@ -709,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveNote() {
         if (!noteTextarea || !noteContainer) return;
         const currentColor = noteContainer.style.backgroundColor || '#fef08a';
+        const currentTextColor = noteTextarea.style.color || '#1e293b';
         const content = noteTextarea.value;
 
         if (noteStatus) {
@@ -720,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await fetch('/api/notes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, color: currentColor })
+                body: JSON.stringify({ content, color: currentColor, text_color: currentTextColor })
             });
             if (noteStatus) {
                 noteStatus.innerHTML = `<i data-lucide="check-circle-2"></i> บันทึกแล้ว`;
@@ -757,30 +761,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Settings Modal & Push Switch Handlers
-    const settingsModal = document.getElementById('settings-modal');
-    const btnOpenSettings = document.getElementById('btn-open-settings');
-    const navBtnSettings = document.getElementById('nav-btn-settings');
-    const btnCloseSettings = document.getElementById('btn-close-settings');
+    textColorDots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            textColorDots.forEach(d => d.classList.remove('active'));
+            dot.classList.add('active');
+            const textColor = dot.getAttribute('data-textcolor');
+            if (noteTextarea) {
+                noteTextarea.style.color = textColor;
+                saveNote();
+            }
+        });
+    });
+
+    // Dedicated Settings Page Sync Button Handler
     const btnSyncNow = document.getElementById('btn-sync-now');
-
-    function openSettings() {
-        if (settingsModal) settingsModal.style.display = 'flex';
-    }
-
-    function closeSettings() {
-        if (settingsModal) settingsModal.style.display = 'none';
-    }
-
-    if (btnOpenSettings) btnOpenSettings.addEventListener('click', openSettings);
-    if (navBtnSettings) navBtnSettings.addEventListener('click', openSettings);
-    if (btnCloseSettings) btnCloseSettings.addEventListener('click', closeSettings);
-
     if (btnSyncNow) {
-        btnSyncNow.addEventListener('click', () => {
-            closeSettings();
-            const syncBtn = document.getElementById('btn-sync');
-            if (syncBtn) syncBtn.click();
+        btnSyncNow.addEventListener('click', async () => {
+            btnSyncNow.disabled = true;
+            btnSyncNow.innerHTML = `<i data-lucide="loader-2" class="spin"></i> กำลังซิงค์ข้อมูล...`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/sync');
+                const data = await res.json();
+                if (data.success) {
+                    showToast("✨ ซิงค์ข้อมูลกับ Google Sheet สำเร็จ!");
+                    loadCategories();
+                    loadBudgetConfig();
+                    loadSummary();
+                } else {
+                    showToast("❌ ซิงค์ข้อมูลไม่สำเร็จ: " + (data.error || ""));
+                }
+            } catch (e) {
+                showToast("❌ เกิดข้อผิดพลาดในการเชื่อมต่อ");
+            } finally {
+                btnSyncNow.disabled = false;
+                btnSyncNow.innerHTML = `<i data-lucide="refresh-cw"></i> ซิงค์ข้อมูลกับ Google Sheet ตอนนี้`;
+                lucide.createIcons();
+            }
         });
     }
 

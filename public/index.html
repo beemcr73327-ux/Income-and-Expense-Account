@@ -20,23 +20,13 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Top Header -->
-        <header class="app-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-            <div class="header-left" style="display: flex; align-items: center; gap: 15px;">
-                <div class="app-logo" style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);">
-                    <i data-lucide="wallet"></i>
+        <!-- Top Header (Centered Minimalist Style) -->
+        <header class="app-header" style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; text-align: center; padding: 14px 20px;">
+            <div class="header-center" style="display: flex; align-items: center; gap: 12px;">
+                <div class="app-logo" style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 8px 20px -4px rgba(168, 85, 247, 0.4);">
+                    <i data-lucide="wallet" style="width: 22px; height: 22px;"></i>
                 </div>
-                <div class="header-titles">
-                    <h1 class="text-xl font-bold" style="color: var(--primary); margin: 0; line-height: 1.2;">Finance Tracker</h1>
-                </div>
-            </div>
-            <div class="header-right" style="display: flex; gap: 10px; align-items: center;">
-                <button id="btn-sync" class="btn btn-icon btn-sync-sleek" title="Sync Sheet">
-                    <i data-lucide="refresh-cw"></i>
-                </button>
-                <button id="btn-open-settings" class="btn btn-icon btn-settings-sleek" title="ตั้งค่า">
-                    <i data-lucide="settings"></i>
-                </button>
+                <h1 class="text-xl font-bold" style="color: #0f172a; margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.3px;">Finance Tracker</h1>
             </div>
         </header>
 
@@ -84,16 +74,32 @@
                             <i data-lucide="sticky-note"></i>
                             <span>โน๊ตบันทึกช่วยจำ (Quick Note)</span>
                         </div>
+                        <!-- Background Color Dots (includes White #ffffff) -->
                         <div class="sticky-note-colors">
                             <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
                             <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
                             <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
                             <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
                             <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
+                            <button class="color-dot" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="สีขาว"></button>
                         </div>
                     </div>
+
+                    <!-- Text Color / Highlight Toolbar -->
+                    <div class="sticky-text-toolbar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.78rem; color: #64748b;">
+                        <span><i data-lucide="palette" style="width: 14px; height: 14px;"></i> สีตัวอักษร:</span>
+                        <div class="text-color-dots" style="display: flex; gap: 6px;">
+                            <button class="text-color-dot active" data-textcolor="#1e293b" style="background: #1e293b;" title="ดำ"></button>
+                            <button class="text-color-dot" data-textcolor="#ef4444" style="background: #ef4444;" title="แดง"></button>
+                            <button class="text-color-dot" data-textcolor="#3b82f6" style="background: #3b82f6;" title="น้ำเงิน"></button>
+                            <button class="text-color-dot" data-textcolor="#10b981" style="background: #10b981;" title="เขียว"></button>
+                            <button class="text-color-dot" data-textcolor="#eab308" style="background: #eab308;" title="เหลือง"></button>
+                            <button class="text-color-dot" data-textcolor="#f97316" style="background: #f97316;" title="ส้ม"></button>
+                        </div>
+                    </div>
+
                     <div class="sticky-note-body">
-                        <textarea id="note-textarea" placeholder="พิมพ์ข้อความช่วยจำที่นี่... (ระบบบันทึกอัตโนมัติ)"></textarea>
+                        <textarea id="note-textarea" style="color: #1e293b;" placeholder="พิมพ์ข้อความช่วยจำที่นี่... (ระบบบันทึกอัตโนมัติ)"></textarea>
                     </div>
                     <div class="sticky-note-footer">
                         <span id="note-save-status"><i data-lucide="check-circle-2"></i> บันทึกแล้ว</span>
@@ -105,9 +111,9 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <h2 class="card-title" style="margin: 0; font-size: 1.1rem;"><i data-lucide="filter"></i> ตัวกรองข้อมูล</h2>
                         <div class="segmented-control toggle-view" style="margin: 0;">
-                            <button class="segmented-btn active" data-view="year">ทั้งปี</button>
+                            <button class="segmented-btn active" data-view="day">รายวัน</button>
                             <button class="segmented-btn" data-view="month">รายเดือน</button>
-                            <button class="segmented-btn" data-view="day">รายวัน</button>
+                            <button class="segmented-btn" data-view="year">ทั้งปี</button>
                         </div>
                     </div>
 
@@ -270,8 +276,45 @@
                         <!-- Transaction rows injected by JS -->
                     </div>
                 </div>
-            </section>
+            <!-- PAGE 4: DEDICATED SETTINGS PAGE -->
+            <section id="page-settings" class="page-view">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h2 class="card-title"><i data-lucide="settings" style="color: #3b82f6;"></i> ตั้งค่าระบบ (Settings)</h2>
+                    </div>
 
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <span class="setting-title">เปิดใช้งานการซิงค์ข้อมูล</span>
+                                <span class="setting-desc">เชื่อมต่อข้อมูลกับ Google Sheets อัตโนมัติ</span>
+                            </div>
+                            <label class="push-switch">
+                                <input type="checkbox" id="sync-push-switch" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item" style="border: none; padding-top: 5px;">
+                            <button id="btn-sync-now" class="btn btn-primary btn-block" style="background: linear-gradient(135deg, #3b82f6, #6366f1);">
+                                <i data-lucide="refresh-cw"></i> ซิงค์ข้อมูลกับ Google Sheet ตอนนี้
+                            </button>
+                        </div>
+
+                        <div class="glass-card" style="background: rgba(248, 250, 252, 0.8); border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; margin-top: 10px;">
+                            <h4 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="info" style="width: 16px; height: 16px; color: #3b82f6;"></i> คำแนะนำการใช้งานระบบ
+                            </h4>
+                            <ul style="font-size: 0.82rem; color: #475569; padding-left: 18px; line-height: 1.7;">
+                                <li>ระบบบันทึกรายรับ-รายจ่ายเชื่อมต่อกับ Google Sheet โดยตรง</li>
+                                <li>เงื่อนไขงบประมาณรายวันควบคุมผ่านชีต <code>DailyA/B</code> (หมวดหมู่, รูปแบบ Day/Month/Year, และสถานะ On/Off)</li>
+                                <li>ข้อความใน Quick Note จะถูกบันทึกให้อัตโนมัติและซิงค์เชื่อมข้ามอุปกรณ์ผ่าน Cloudflare D1</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
 
         <!-- Bottom Navigation Bar (Fixed Horizontal Flex) -->
         <nav class="bottom-nav">
@@ -287,7 +330,7 @@
                 <i data-lucide="list"></i>
                 <span>รายการ</span>
             </button>
-            <button class="nav-item" id="nav-btn-settings">
+            <button class="nav-item" data-page="page-settings">
                 <i data-lucide="settings"></i>
                 <span>ตั้งค่า</span>
             </button>
@@ -307,34 +350,6 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="btn-modal-cancel">ยกเลิก</button>
                 <button type="button" class="btn btn-primary" id="btn-modal-confirm">ยืนยันแก้ไข</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-card">
-            <div class="modal-header">
-                <div class="modal-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i data-lucide="settings"></i></div>
-                <h3>การตั้งค่าระบบ</h3>
-                <button id="btn-close-settings" class="btn-close-modal"><i data-lucide="x"></i></button>
-            </div>
-            <div class="modal-body" style="padding-top: 10px;">
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <span class="setting-title">เปิดใช้งานการซิงค์ข้อมูล</span>
-                        <span class="setting-desc">เชื่อมต่อข้อมูลกับ Google Sheets อัตโนมัติ</span>
-                    </div>
-                    <label class="push-switch">
-                        <input type="checkbox" id="sync-push-switch" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="setting-item" style="border: none; padding-top: 15px;">
-                    <button id="btn-sync-now" class="btn btn-primary btn-block">
-                        <i data-lucide="refresh-cw"></i> ซิงค์ข้อมูลกับ Google Sheet ตอนนี้
-                    </button>
-                </div>
             </div>
         </div>
     </div>

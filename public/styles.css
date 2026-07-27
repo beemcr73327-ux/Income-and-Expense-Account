@@ -713,6 +713,24 @@ body {
     transform: scale(1.15);
 }
 
+.text-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.text-color-dot:hover {
+    transform: scale(1.15);
+}
+
+.text-color-dot.active {
+    border-color: #0f172a;
+    transform: scale(1.15);
+}
+
 .sticky-note-body textarea {
     width: 100%;
     min-height: 80px;
