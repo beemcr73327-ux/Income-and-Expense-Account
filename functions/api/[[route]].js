@@ -24,18 +24,23 @@ function jsonResponse(data, status = 200) {
 // Function to handle Google Sheets API calls via Apps Script Webhook
 async function appendToGoogleSheet(env, transaction) {
   try {
-    const appsScriptUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
-    if (!appsScriptUrl) {
+    const baseUrl = env.GOOGLE_APPS_SCRIPT_URL || HARDCODED_APPS_SCRIPT_URL;
+    if (!baseUrl) {
       console.warn("GOOGLE_APPS_SCRIPT_URL is not set. Skipping Google Sheets sync.");
       return;
     }
 
-    const response = await fetch(appsScriptUrl, {
+    const payloadJson = JSON.stringify(transaction);
+    const targetUrl = baseUrl.includes('?') 
+      ? `${baseUrl}&payload=${encodeURIComponent(payloadJson)}`
+      : `${baseUrl}?payload=${encodeURIComponent(payloadJson)}`;
+
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(transaction)
+      body: payloadJson
     });
 
     if (!response.ok) {

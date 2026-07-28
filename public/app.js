@@ -31,11 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const { label, value, color } = chart.config.options.plugins.centerText;
             if (!label && !value) return;
 
-            const { ctx } = chart;
+            const { ctx, chartArea } = chart;
             const meta = chart.getDatasetMeta(0);
-            if (meta && meta.data && meta.data[0]) {
-                const x = meta.data[0].x;
-                const y = meta.data[0].y;
+            if (meta && meta.data && meta.data.length > 0) {
+                const x = chartArea ? (chartArea.left + chartArea.right) / 2 : meta.data[0].x;
+                const y = chartArea ? (chartArea.top + chartArea.bottom) / 2 : meta.data[0].y;
 
                 ctx.save();
                 ctx.textAlign = 'center';
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Value Text (e.g. "฿9,563")
                 ctx.font = '700 18px Prompt, Kanit, sans-serif';
                 ctx.fillStyle = color || '#0f172a';
-                ctx.fillText(value || '', x, y + 12);
+                ctx.fillText(value || '', x, y + 10);
 
                 ctx.restore();
             }
@@ -230,12 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadSummary() {
         updateKpiCards();
         try {
-            let url = `/api/summary?year=${state.currentYear}`;
-            if (state.chartView === 'month') {
-                url += `&month=${state.currentMonth}`;
-            } else if (state.chartView === 'day') {
-                url += `&date=${state.currentDay}`;
-            }
+            // Always fetch month summary for stable monthly balance and income pie charts
+            let url = `/api/summary?year=${state.currentYear}&month=${state.currentMonth}`;
             
             const res = await fetch(url);
             if (!res.ok) throw new Error("API network error or static demo server");
@@ -802,6 +798,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function formatShortThaiDate(dateStr) {
+        if (!dateStr) return '';
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length !== 3) return dateStr;
+        const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+        const day = parseInt(parts[2], 10);
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        const shortYear = parts[0].slice(-2);
+        if (monthIdx >= 0 && monthIdx < 12) {
+            return `${day}/${thaiMonths[monthIdx]}/${shortYear}`;
+        }
+        return dateStr;
+    }
+
     function renderTransactionHistory() {
         if (!state.transactionsData) return;
         const container = elements.historyList;
@@ -826,13 +836,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (t.type === 'รายรับ') { iconName = 'arrow-up-right'; sign = '+'; typeClass = 'income'; }
             if (t.type === 'เงินออม/ลงทุน') { iconName = 'piggy-bank'; sign = ''; typeClass = 'saving'; }
 
+            const formattedDate = formatShortThaiDate(t.date);
+
             const itemHtml = `
                 <div class="tx-item tx-${typeClass}">
                     <div class="tx-left">
                         <div class="tx-icon"><i data-lucide="${iconName}"></i></div>
                         <div class="tx-details">
                             <span class="tx-title">${t.category}</span>
-                            <span class="tx-sub">${t.date} ${t.note ? '• ' + t.note : ''}</span>
+                            <span class="tx-sub">${formattedDate} ${t.note ? '• ' + t.note : ''}</span>
                         </div>
                     </div>
                     <div class="tx-right" style="display: flex; align-items: center; gap: 10px;">
