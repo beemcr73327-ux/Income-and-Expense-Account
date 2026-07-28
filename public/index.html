@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- FontAwesome / Lucide icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260728_v2">
     <!-- PWA Manifest & Icons -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icon.png">
@@ -35,82 +35,53 @@
 
             <!-- PAGE 1: DASHBOARD -->
             <section id="page-dashboard" class="page-view active">
-                <!-- KPI Cards Grid -->
-                <div class="kpi-grid">
-                    <div class="kpi-card card-income">
-                        <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
-                        <div class="kpi-info">
-                            <span class="kpi-label">รายรับเดือนนี้</span>
-                            <h3 class="kpi-value" id="kpi-income">฿0</h3>
+                <!-- KPI Cards & Yearly Mini Combo Chart Container -->
+                <div class="yearly-side-container" id="kpi-yearly-wrapper">
+                    <div class="kpi-grid">
+                        <div class="kpi-card card-income">
+                            <div class="kpi-icon"><i data-lucide="trending-up"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">รายรับเดือนนี้</span>
+                                <h3 class="kpi-value" id="kpi-income">฿0</h3>
+                            </div>
                         </div>
-                    </div>
-                    <div class="kpi-card card-expense">
-                        <div class="kpi-icon"><i data-lucide="trending-down"></i></div>
-                        <div class="kpi-info">
-                            <span class="kpi-label">รายจ่ายเดือนนี้</span>
-                            <h3 class="kpi-value" id="kpi-expense">฿0</h3>
+                        <div class="kpi-card card-expense">
+                            <div class="kpi-icon"><i data-lucide="trending-down"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">รายจ่ายเดือนนี้</span>
+                                <h3 class="kpi-value" id="kpi-expense">฿0</h3>
+                            </div>
                         </div>
-                    </div>
-                    <div class="kpi-card card-saving">
-                        <div class="kpi-icon"><i data-lucide="piggy-bank"></i></div>
-                        <div class="kpi-info">
-                            <span class="kpi-label">ออม+ลงทุนเดือนนี้</span>
-                            <h3 class="kpi-value" id="kpi-saving">฿0</h3>
+                        <div class="kpi-card card-saving">
+                            <div class="kpi-icon"><i data-lucide="piggy-bank"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">ออม+ลงทุนเดือนนี้</span>
+                                <h3 class="kpi-value" id="kpi-saving">฿0</h3>
+                            </div>
                         </div>
-                    </div>
-                    <div class="kpi-card card-balance">
-                        <div class="kpi-icon"><i data-lucide="coins"></i></div>
-                        <div class="kpi-info">
-                            <span class="kpi-label">คงเหลือ (รายรับ-รายจ่าย)</span>
-                            <h3 class="kpi-value" id="kpi-balance">฿0</h3>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sticky Note Card -->
-                <div class="sticky-note-card" id="sticky-note-container" style="background-color: #fef08a;">
-                    <div class="sticky-note-header">
-                        <div class="sticky-note-title">
-                            <i data-lucide="sticky-note"></i>
-                            <span>โน๊ตบันทึกช่วยจำ (Quick Note)</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <!-- Pen Icon Button for Text Highlight -->
-                            <button id="btn-note-pen" class="btn-pen-icon" title="เลือกสีข้อความ/ไฮไลต์">
-                                <i data-lucide="pen-tool" style="width: 14px; height: 14px;"></i>
-                            </button>
-                            <!-- Background Color Dots (includes White #ffffff) -->
-                            <div class="sticky-note-colors">
-                                <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
-                                <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
-                                <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
-                                <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
-                                <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
-                                <button class="color-dot" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="สีขาว"></button>
+                        <div class="kpi-card card-balance">
+                            <div class="kpi-icon"><i data-lucide="coins"></i></div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">คงเหลือ (รายรับ-รายจ่าย)</span>
+                                <h3 class="kpi-value" id="kpi-balance">฿0</h3>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Slide-out Pen Palette Toolbar (Collapsed by Default) -->
-                    <div id="sticky-pen-palette" class="sticky-pen-palette collapsed">
-                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 500;">ไฮไลต์สีข้อความที่คลุม:</span>
-                        <div class="text-color-dots">
-                            <button class="text-color-dot active" data-textcolor="#1e293b" style="background: #1e293b;" title="ดำ"></button>
-                            <button class="text-color-dot" data-textcolor="#ef4444" style="background: #ef4444;" title="แดง"></button>
-                            <button class="text-color-dot" data-textcolor="#3b82f6" style="background: #3b82f6;" title="น้ำเงิน"></button>
-                            <button class="text-color-dot" data-textcolor="#10b981" style="background: #10b981;" title="เขียว"></button>
-                            <button class="text-color-dot" data-textcolor="#eab308" style="background: #eab308;" title="เหลือง"></button>
-                            <button class="text-color-dot" data-textcolor="#f97316" style="background: #f97316;" title="ส้ม"></button>
+                    <!-- Mini Combo Chart Card for Yearly View (Side-by-side) -->
+                    <div class="glass-card chart-card" id="yearly-chart-card" style="display: none; margin-bottom: 0;">
+                        <div class="card-header" style="margin-bottom: 8px;">
+                            <h2 class="card-title" style="color: #6366f1; font-size: 0.95rem;">
+                                <i data-lucide="bar-chart-3" style="color: #6366f1;"></i> แนวโน้มการเงินรายเดือน (ทั้งปี)
+                            </h2>
+                        </div>
+                        <div class="chart-container" style="position: relative; height: 210px;">
+                            <canvas id="yearlyComboChart"></canvas>
                         </div>
                     </div>
-
-                    <div class="sticky-note-body">
-                        <div id="note-editor" contenteditable="true" class="note-editor" data-placeholder="พิมพ์ข้อความช่วยจำที่นี่... (เอานิ้ว/เมาส์ลากคลุมคำแล้วกดเลือกสีปากกาเพื่อไฮไลต์เฉพาะจุด)"></div>
-                    </div>
-                    <div class="sticky-note-footer">
-                        <span id="note-save-status"><i data-lucide="check-circle-2"></i> บันทึกแล้ว</span>
-                    </div>
                 </div>
+
+
 
                 <!-- Global Dashboard Filters -->
                 <div class="glass-card filter-card" style="margin-bottom: 20px;">
@@ -179,6 +150,59 @@
                     <!-- Chart Canvas for Income -->
                     <div class="chart-container" style="position: relative; height: 260px; margin-top: 1rem; margin-bottom: 1rem;">
                         <canvas id="incomeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sticky Note Card (Moved to bottom of Dashboard) -->
+                <div class="sticky-note-card" id="sticky-note-container" style="background-color: #fef08a; margin-top: 20px;">
+                    <div class="sticky-note-header">
+                        <div class="sticky-note-title">
+                            <i data-lucide="sticky-note"></i>
+                            <span>โน๊ตบันทึกช่วยจำ (Quick Note)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Pen Icon Button for Text Highlight -->
+                            <button id="btn-note-pen" class="btn-pen-icon" title="เลือกสีข้อความ/ไฮไลต์">
+                                <i data-lucide="pen-tool" style="width: 14px; height: 14px;"></i>
+                            </button>
+                            <!-- Palette & Brush Icon Button for Note Background Color -->
+                            <button id="btn-note-bg-palette" class="btn-palette-icon" title="เลือกสีพื้นหลังโน๊ต">
+                                <i data-lucide="palette" style="width: 14px; height: 14px;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Slide-out Background Color Palette Toolbar (Collapsed by Default) -->
+                    <div id="sticky-bg-palette" class="sticky-bg-palette collapsed">
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 500;">เลือกสีพื้นหลังโน๊ต:</span>
+                        <div class="sticky-note-colors">
+                            <button class="color-dot active" data-color="#fef08a" style="background: #fef08a;" title="สีเหลือง"></button>
+                            <button class="color-dot" data-color="#bae6fd" style="background: #bae6fd;" title="สีฟ้า"></button>
+                            <button class="color-dot" data-color="#fbcfe8" style="background: #fbcfe8;" title="สีชมพู"></button>
+                            <button class="color-dot" data-color="#bbf7d0" style="background: #bbf7d0;" title="สีเขียว"></button>
+                            <button class="color-dot" data-color="#e9d5ff" style="background: #e9d5ff;" title="สีม่วง"></button>
+                            <button class="color-dot" data-color="#ffffff" style="background: #ffffff; border: 1px solid #cbd5e1;" title="สีขาว"></button>
+                        </div>
+                    </div>
+
+                    <!-- Slide-out Pen Palette Toolbar (Collapsed by Default) -->
+                    <div id="sticky-pen-palette" class="sticky-pen-palette collapsed">
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 500;">ไฮไลต์สีข้อความที่คลุม:</span>
+                        <div class="text-color-dots">
+                            <button class="text-color-dot active" data-textcolor="#1e293b" style="background: #1e293b;" title="ดำ"></button>
+                            <button class="text-color-dot" data-textcolor="#ef4444" style="background: #ef4444;" title="แดง"></button>
+                            <button class="text-color-dot" data-textcolor="#3b82f6" style="background: #3b82f6;" title="น้ำเงิน"></button>
+                            <button class="text-color-dot" data-textcolor="#10b981" style="background: #10b981;" title="เขียว"></button>
+                            <button class="text-color-dot" data-textcolor="#eab308" style="background: #eab308;" title="เหลือง"></button>
+                            <button class="text-color-dot" data-textcolor="#f97316" style="background: #f97316;" title="ส้ม"></button>
+                        </div>
+                    </div>
+
+                    <div class="sticky-note-body">
+                        <div id="note-editor" contenteditable="true" class="note-editor" data-placeholder="พิมพ์ข้อความช่วยจำที่นี่... (เอานิ้ว/เมาส์ลากคลุมคำแล้วกดเลือกสีปากกาเพื่อไฮไลต์เฉพาะจุด)"></div>
+                    </div>
+                    <div class="sticky-note-footer">
+                        <span id="note-save-status"><i data-lucide="check-circle-2"></i> บันทึกแล้ว</span>
                     </div>
                 </div>
             </section>
@@ -357,6 +381,6 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260728_v2"></script>
 </body>
 </html>

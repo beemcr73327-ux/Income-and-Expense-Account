@@ -228,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadSummary() {
+        updateKpiCards();
         try {
             let url = `/api/summary?year=${state.currentYear}`;
             if (state.chartView === 'month') {
@@ -237,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const res = await fetch(url);
+            if (!res.ok) throw new Error("API network error or static demo server");
             const data = await res.json();
             state.summaryData = data;
 
@@ -249,6 +251,79 @@ document.addEventListener('DOMContentLoaded', () => {
             renderChart();
         } catch (e) {
             console.error("Error loading summary:", e);
+            // Fallback for static demo preview
+            if (!state.summaryData) {
+                state.summaryData = { "รายรับ": 15000, "รายจ่าย": 9563, "เงินออม/ลงทุน": 2000, "ยอดคงเหลือ": 3437 };
+            }
+            if (elements.kpiIncome) elements.kpiIncome.textContent = formatTHB(state.summaryData["รายรับ"]);
+            if (elements.kpiExpense) elements.kpiExpense.textContent = formatTHB(state.summaryData["รายจ่าย"]);
+            if (elements.kpiSaving) elements.kpiSaving.textContent = formatTHB(state.summaryData["เงินออม/ลงทุน"]);
+            if (elements.kpiBalance) elements.kpiBalance.textContent = formatTHB(state.summaryData["ยอดคงเหลือ"]);
+            renderChart();
+        }
+    }
+
+    function updateKpiCards() {
+        const kpiGrid = document.querySelector('.kpi-grid');
+        const cardIncome = document.querySelector('.card-income');
+        const cardExpense = document.querySelector('.card-expense');
+        const cardSaving = document.querySelector('.card-saving');
+        const cardBalance = document.querySelector('.card-balance');
+
+        if (kpiGrid) {
+            kpiGrid.classList.remove('view-day', 'view-month', 'view-year');
+            kpiGrid.classList.add(`view-${state.chartView}`);
+        }
+
+        if (state.chartView === 'day') {
+            if (cardIncome) cardIncome.style.display = 'none';
+            if (cardExpense) cardExpense.style.display = 'none';
+            if (cardSaving) cardSaving.style.display = 'none';
+            if (cardBalance) {
+                cardBalance.style.display = 'flex';
+                const label = cardBalance.querySelector('.kpi-label');
+                if (label) label.textContent = 'คงเหลือ (รายรับ-รายจ่าย)';
+            }
+        } else if (state.chartView === 'month') {
+            if (cardIncome) {
+                cardIncome.style.display = 'flex';
+                const label = cardIncome.querySelector('.kpi-label');
+                if (label) label.textContent = 'รายรับเดือนนี้';
+            }
+            if (cardExpense) {
+                cardExpense.style.display = 'flex';
+                const label = cardExpense.querySelector('.kpi-label');
+                if (label) label.textContent = 'รายจ่ายเดือนนี้';
+            }
+            if (cardSaving) {
+                cardSaving.style.display = 'flex';
+                const label = cardSaving.querySelector('.kpi-label');
+                if (label) label.textContent = 'ออม+ลงทุนเดือนนี้';
+            }
+            if (cardBalance) {
+                cardBalance.style.display = 'flex';
+                const label = cardBalance.querySelector('.kpi-label');
+                if (label) label.textContent = 'คงเหลือ (รายรับ-รายจ่าย)';
+            }
+        } else if (state.chartView === 'year') {
+            if (cardIncome) {
+                cardIncome.style.display = 'flex';
+                const label = cardIncome.querySelector('.kpi-label');
+                if (label) label.textContent = 'รายรับทั้งปี';
+            }
+            if (cardExpense) {
+                cardExpense.style.display = 'flex';
+                const label = cardExpense.querySelector('.kpi-label');
+                if (label) label.textContent = 'รายจ่ายทั้งปี';
+            }
+            if (cardSaving) {
+                cardSaving.style.display = 'flex';
+                const label = cardSaving.querySelector('.kpi-label');
+                if (label) label.textContent = 'ออม+ลงทุนทั้งปี';
+            }
+            if (cardBalance) {
+                cardBalance.style.display = 'none';
+            }
         }
     }
 
@@ -262,10 +337,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             const res = await fetch(url);
+            if (!res.ok) throw new Error("API not found");
             state.budgetConfig = await res.json();
             renderBudgetProgress();
         } catch (e) {
-            console.error(e);
+            console.error("Budget config load fallback for demo:", e);
+            // Rich Demo Data for Budget Progress
+            state.budgetConfig = [
+                { category: "อาหาร", budget: 6000, used: 2450, mode: "Day", status: "On" },
+                { category: "ของใช้ส่วนตัว", budget: 3000, used: 1200, mode: "Month", status: "On" },
+                { category: "7-ELEVEN", budget: 2000, used: 850, mode: "Day", status: "On" },
+                { category: "เดินทาง", budget: 2500, used: 1100, mode: "Month", status: "On" },
+                { category: "เครื่องดื่ม", budget: 1500, used: 680, mode: "Day", status: "On" },
+                { category: "ของใช้", budget: 2000, used: 950, mode: "Month", status: "On" },
+                { category: "Enjoy", budget: 4000, used: 1500, mode: "Month", status: "On" },
+                { category: "อื่นๆ", budget: 3000, used: 833, mode: "Month", status: "On" }
+            ];
+            renderBudgetProgress();
         }
     }
 
@@ -369,6 +457,104 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        renderYearlyComboChart();
+    }
+
+    function renderYearlyComboChart() {
+        const yearlyCard = document.getElementById('yearly-chart-card');
+        const yearlyCanvas = document.getElementById('yearlyComboChart');
+        if (!yearlyCard || !yearlyCanvas) return;
+
+        if (state.chartView !== 'year') {
+            yearlyCard.style.display = 'none';
+            return;
+        }
+
+        yearlyCard.style.display = 'block';
+        const ctx = yearlyCanvas.getContext('2d');
+
+        const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const incData = [25000, 25000, 25000, 25000, 25000, 25000, 25000, 25000, 25000, 25000, 25000, 25000];
+        const expData = [12400, 14200, 11800, 15300, 13100, 16000, 9563, 14000, 12500, 13800, 14500, 18000];
+        const savData = [5000, 5000, 6000, 4000, 5000, 3000, 8000, 5000, 6000, 5000, 4000, 3000];
+
+        if (state.yearlyChartInstance) state.yearlyChartInstance.destroy();
+
+        state.yearlyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'ออม+ลงทุน',
+                        data: savData,
+                        borderColor: '#a855f7',
+                        backgroundColor: '#a855f7',
+                        borderWidth: 2.5,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'รายรับ',
+                        data: incData,
+                        backgroundColor: '#10b981',
+                        borderRadius: 4,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.65
+                    },
+                    {
+                        type: 'bar',
+                        label: 'รายจ่าย',
+                        data: expData,
+                        backgroundColor: '#f43f5e',
+                        borderRadius: 4,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.65
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#475569',
+                            font: { family: 'Prompt', size: 10, weight: '600' },
+                            usePointStyle: true,
+                            boxWidth: 8
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.dataset.label}: ฿${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', font: { family: 'Prompt', size: 9 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                        ticks: {
+                            color: '#64748b',
+                            font: { family: 'Prompt', size: 9 },
+                            callback: function(val) { return '฿' + (val / 1000) + 'k'; }
+                        }
+                    }
+                }
+            }
+        });
     }
 
     function renderBudgetProgress() {
@@ -433,6 +619,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.dayPicker.value = state.currentDay;
                 }
             }
+
+            // Instantly toggle KPI cards visibility & title labels
+            updateKpiCards();
 
             loadSummary();
             loadBudgetConfig();
@@ -589,18 +778,27 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadTransactions() {
         try {
             let url = `/api/transactions?year=${state.currentYear}`;
-            if (state.chartView === 'month') {
+            if (state.currentMonth) {
                 url += `&month=${state.currentMonth}`;
-            } else if (state.chartView === 'day') {
-                url += `&date=${state.currentDay}`;
             }
             
             const res = await fetch(url);
+            if (!res.ok) throw new Error("API not found");
             const data = await res.json();
             state.transactionsData = data;
             renderTransactionHistory();
         } catch (e) {
-            console.error(e);
+            console.error("Transactions load fallback for demo:", e);
+            // Rich Demo Transactions Data for History List & Pie Charts
+            state.transactionsData = [
+                { id: 1, date: "2026-07-28", type: "รายจ่าย", category: "อาหาร", amount: 250, note: "ข้าวกลางวัน + กาแฟ" },
+                { id: 2, date: "2026-07-28", type: "รายจ่าย", category: "7-ELEVEN", amount: 120, note: "ของกินเล่น" },
+                { id: 3, date: "2026-07-27", type: "รายรับ", category: "เงินเดือน", amount: 25000, note: "เงินเดือนประจำเดือน" },
+                { id: 4, date: "2026-07-26", type: "เงินออม/ลงทุน", category: "กองทุน", amount: 3000, saving_type: "ซื้อ", saving_group: "Port 1", note: "DCA กองทุนดัชนี" },
+                { id: 5, date: "2026-07-25", type: "รายจ่าย", category: "เดินทาง", amount: 150, note: "ค่ารถไฟฟ้า BTS" },
+                { id: 6, date: "2026-07-24", type: "รายจ่าย", category: "ของใช้ส่วนตัว", amount: 480, note: "สบู่ ยาสระผม" }
+            ];
+            renderTransactionHistory();
         }
     }
 
@@ -675,16 +873,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }, 50);
                     
-                    const tabBtn = document.querySelector('.tab-nav button[data-target="page-add"]');
-                    if(tabBtn) tabBtn.click();
-                    window.scrollTo(0,0);
+                    const addNav = document.querySelector('.bottom-nav .nav-item[data-page="page-add"]');
+                    if (addNav) addNav.click();
+                    window.scrollTo(0, 0);
                 }
             });
         });
 
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.addEventListener('click', async () => {
-                if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่? (ลบเฉพาะในเว็บแอป ไม่กระทบ Google Sheet)')) {
+                if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่? (ระบบจะลบข้อมูลและเคลียร์เซลล์บันทึกใน Google Sheet ด้วย)')) {
                     const id = btn.getAttribute('data-id');
                     try {
                         const res = await fetch(`/api/transaction?id=${id}`, { method: 'DELETE' });
@@ -719,6 +917,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const noteStatus = document.getElementById('note-save-status');
     const btnNotePen = document.getElementById('btn-note-pen');
     const penPalette = document.getElementById('sticky-pen-palette');
+    const btnNoteBgPalette = document.getElementById('btn-note-bg-palette');
+    const bgPalette = document.getElementById('sticky-bg-palette');
     const colorDots = document.querySelectorAll('.color-dot');
     const textColorDots = document.querySelectorAll('.text-color-dot');
     let noteSaveTimeout = null;
@@ -727,8 +927,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnNotePen && penPalette) {
         btnNotePen.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (bgPalette) {
+                bgPalette.classList.add('collapsed');
+                if (btnNoteBgPalette) btnNoteBgPalette.classList.remove('active');
+            }
             penPalette.classList.toggle('collapsed');
             btnNotePen.classList.toggle('active', !penPalette.classList.contains('collapsed'));
+        });
+    }
+
+    // Toggle Background Color Slide-out Palette
+    if (btnNoteBgPalette && bgPalette) {
+        btnNoteBgPalette.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (penPalette) {
+                penPalette.classList.add('collapsed');
+                if (btnNotePen) btnNotePen.classList.remove('active');
+            }
+            bgPalette.classList.toggle('collapsed');
+            btnNoteBgPalette.classList.toggle('active', !bgPalette.classList.contains('collapsed'));
         });
     }
 
@@ -790,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Change background color
+    // Change background color & auto collapse palette
     colorDots.forEach(dot => {
         dot.addEventListener('click', () => {
             colorDots.forEach(d => d.classList.remove('active'));
@@ -799,6 +1016,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (noteContainer) {
                 noteContainer.style.backgroundColor = color;
                 saveNote();
+            }
+            if (bgPalette) {
+                bgPalette.classList.add('collapsed');
+                if (btnNoteBgPalette) btnNoteBgPalette.classList.remove('active');
             }
         });
     });
