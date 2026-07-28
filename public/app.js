@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const meta = chart.getDatasetMeta(0);
             if (meta && meta.data && meta.data.length > 0) {
                 // Apply a -7px optical offset to nudge the text slightly to the left (towards the yellow segment) to center it perfectly on mobile screens
-                const x = (chartArea ? (chartArea.left + chartArea.right) / 2 : meta.data[0].x) - 20;
+                const x = (chartArea ? (chartArea.left + chartArea.right) / 2 : meta.data[0].x) - 23;
                 const y = chartArea ? (chartArea.top + chartArea.bottom) / 2 : meta.data[0].y;
 
                 ctx.save();
@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cardBalance) {
                 cardBalance.style.display = 'flex';
                 const label = cardBalance.querySelector('.kpi-label');
-                if (label) label.textContent = 'คงเหลือ (รายรับ-รายจ่าย)';
+                if (label) label.textContent = 'คงเหลือ';
             }
         } else if (state.chartView === 'month') {
             if (cardIncome) {
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cardBalance) {
                 cardBalance.style.display = 'flex';
                 const label = cardBalance.querySelector('.kpi-label');
-                if (label) label.textContent = 'คงเหลือ (รายรับ-รายจ่าย)';
+                if (label) label.textContent = 'คงเหลือ';
             }
         } else if (state.chartView === 'year') {
             if (cardIncome) {
