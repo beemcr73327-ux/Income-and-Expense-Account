@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const meta = chart.getDatasetMeta(0);
             if (meta && meta.data && meta.data.length > 0) {
                 // Apply a -7px optical offset to nudge the text slightly to the left (towards the yellow segment) to center it perfectly on mobile screens
-                const x = (chartArea ? (chartArea.left + chartArea.right) / 2 : meta.data[0].x) - 12;
+                const x = (chartArea ? (chartArea.left + chartArea.right) / 2 : meta.data[0].x) - 17;
                 const y = chartArea ? (chartArea.top + chartArea.bottom) / 2 : meta.data[0].y;
 
                 ctx.save();
